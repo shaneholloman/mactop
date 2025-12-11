@@ -138,7 +138,7 @@ func setupUI() {
 	mainBlock.Title = " mactop "
 	mainBlock.TitleRight = " " + version + " "
 	mainBlock.TitleAlignment = ui.AlignLeft
-	mainBlock.TitleBottomLeft = fmt.Sprintf("%d/%d layout (%s)", currentLayoutNum, totalLayouts, currentColorName)
+	mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum, totalLayouts, currentColorName)
 	mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
 	mainBlock.TitleBottomAlignment = ui.AlignCenter
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
@@ -735,6 +735,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
 	mainBlock.SetRect(0, 0, termWidth, termHeight)
+	if termWidth < 93 {
+		mainBlock.TitleBottom = ""
+	} else {
+		mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+	}
 	grid.SetRect(1, 1, termWidth-1, termHeight-1)
 	renderUI()
 
@@ -849,6 +854,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			termWidth, termHeight := payload.Width, payload.Height
 			renderMutex.Lock()
 			mainBlock.SetRect(0, 0, termWidth, termHeight)
+			if termWidth < 93 {
+				mainBlock.TitleBottom = ""
+			} else {
+				mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+			}
 			grid.SetRect(1, 1, termWidth-1, termHeight-1)
 			ui.Clear()
 			ui.Render(mainBlock, grid)
@@ -872,6 +882,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				termWidth, termHeight := ui.TerminalDimensions()
 				renderMutex.Lock()
 				mainBlock.SetRect(0, 0, termWidth, termHeight)
+				if termWidth < 93 {
+					mainBlock.TitleBottom = ""
+				} else {
+					mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+				}
 				grid.SetRect(1, 1, termWidth-1, termHeight-1)
 				ui.Clear()
 				ui.Render(mainBlock, grid)
@@ -882,6 +897,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				renderMutex.Lock()
 				termWidth, termHeight := ui.TerminalDimensions()
 				mainBlock.SetRect(0, 0, termWidth, termHeight)
+				if termWidth < 93 {
+					mainBlock.TitleBottom = ""
+				} else {
+					mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+				}
 				grid.SetRect(1, 1, termWidth-1, termHeight-1)
 				cycleTheme()
 				renderMutex.Unlock()

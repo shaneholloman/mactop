@@ -50,6 +50,11 @@ func applyLayout(layoutName string) {
 	if mainBlock != nil {
 		mainBlock.SetRect(0, 0, termWidth, termHeight)
 		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+		if termWidth < 93 {
+			mainBlock.TitleBottom = ""
+		} else {
+			mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+		}
 	}
 	grid = ui.NewGrid()
 
