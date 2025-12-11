@@ -930,18 +930,24 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 					updateInterval = 100
 				}
 				ticker.Reset(time.Duration(updateInterval) * time.Millisecond)
+
+				renderMutex.Lock()
 				updateHelpText()
 				updateModelText()
 				updateIntervalText()
+				renderMutex.Unlock()
 			case "+", "=":
 				updateInterval += 100
 				if updateInterval > 5000 {
 					updateInterval = 5000
 				}
 				ticker.Reset(time.Duration(updateInterval) * time.Millisecond)
+
+				renderMutex.Lock()
 				updateHelpText()
 				updateModelText()
 				updateIntervalText()
+				renderMutex.Unlock()
 			}
 
 		case ui.MouseEvent:
