@@ -286,6 +286,7 @@ func togglePartyMode() {
 				}
 				cycleTheme()
 				renderMutex.Lock()
+				updateProcessList()
 				ui.Clear()
 				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
@@ -886,6 +887,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				cycleTheme()
 				saveConfig()
 				renderMutex.Lock()
+				updateProcessList()
 				ui.Clear()
 				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
@@ -903,6 +905,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				if updateInterval < 100 {
 					updateInterval = 100
 				}
+				ticker.Reset(time.Duration(updateInterval) * time.Millisecond)
 				updateHelpText()
 				updateModelText()
 				updateIntervalText()
@@ -911,6 +914,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				if updateInterval > 5000 {
 					updateInterval = 5000
 				}
+				ticker.Reset(time.Duration(updateInterval) * time.Millisecond)
 				updateHelpText()
 				updateModelText()
 				updateIntervalText()
