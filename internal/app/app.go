@@ -883,16 +883,20 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				termWidth, termHeight := ui.TerminalDimensions()
 				mainBlock.SetRect(0, 0, termWidth, termHeight)
 				grid.SetRect(1, 1, termWidth-1, termHeight-1)
-				renderMutex.Unlock()
 				cycleTheme()
+				renderMutex.Unlock()
+
 				saveConfig()
+
 				renderMutex.Lock()
 				updateProcessList()
 				ui.Clear()
 				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
 			case "l":
+				renderMutex.Lock()
 				cycleLayout()
+				renderMutex.Unlock()
 				saveConfig()
 				renderMutex.Lock()
 				ui.Clear()
