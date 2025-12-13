@@ -3,7 +3,7 @@ module github.com/metaspartan/mactop/v2
 go 1.25.5
 
 require (
-	github.com/metaspartan/gotui/v4 v4.1.8
+	github.com/metaspartan/gotui/v4 v4.2.1
 	github.com/prometheus/client_golang v1.20.5
 	github.com/shirou/gopsutil/v4 v4.25.10
 	golang.org/x/term v0.37.0
@@ -12,14 +12,15 @@ require (
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/ebitengine/purego v0.9.0 // indirect
 	github.com/gdamore/encoding v1.0.1 // indirect
-	github.com/gdamore/tcell/v2 v2.13.2 // indirect
+	github.com/gdamore/tcell/v2 v2.13.4 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect
 	github.com/lucasb-eyer/go-colorful v1.3.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
+	github.com/mattn/go-runewidth v0.0.19 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
