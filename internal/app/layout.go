@@ -192,5 +192,7 @@ func applyLayout(layoutName string) {
 			),
 		)
 	}
-	grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	if termWidth > 2 && termHeight > 2 {
+		grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	}
 }

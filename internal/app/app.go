@@ -741,7 +741,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	} else {
 		mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
 	}
-	grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	if termWidth > 2 && termHeight > 2 {
+		grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	}
 	renderUI()
 
 	cpuMetricsChan := make(chan CPUMetrics, 1)
@@ -860,7 +862,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			} else {
 				mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
 			}
-			grid.SetRect(1, 1, termWidth-1, termHeight-1)
+			if termWidth > 2 && termHeight > 2 {
+				grid.SetRect(1, 1, termWidth-1, termHeight-1)
+			}
 			if showHelp {
 				grid.SetRect(0, 0, termWidth, termHeight)
 			}
@@ -891,7 +895,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				} else {
 					mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
 				}
-				grid.SetRect(1, 1, termWidth-1, termHeight-1)
+				if termWidth > 2 && termHeight > 2 {
+					grid.SetRect(1, 1, termWidth-1, termHeight-1)
+				}
 				ui.Clear()
 				ui.Render(mainBlock, grid)
 				renderMutex.Unlock()
@@ -906,7 +912,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				} else {
 					mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
 				}
-				grid.SetRect(1, 1, termWidth-1, termHeight-1)
+				if termWidth > 2 && termHeight > 2 {
+					grid.SetRect(1, 1, termWidth-1, termHeight-1)
+				}
 				cycleTheme()
 				renderMutex.Unlock()
 
