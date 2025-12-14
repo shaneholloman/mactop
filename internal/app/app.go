@@ -270,7 +270,12 @@ func toggleHelpMenu() {
 	}
 	renderMutex.Lock()
 	ui.Clear()
-	ui.Render(mainBlock, grid)
+	width, height := ui.TerminalDimensions()
+	if width > 2 && height > 2 {
+		ui.Render(mainBlock, grid)
+	} else {
+		ui.Render(mainBlock)
+	}
 	renderMutex.Unlock()
 }
 
@@ -287,8 +292,12 @@ func togglePartyMode() {
 				cycleTheme()
 				renderMutex.Lock()
 				updateProcessList()
-				ui.Clear()
-				ui.Render(mainBlock, grid)
+				width, height := ui.TerminalDimensions()
+				if width > 2 && height > 2 {
+					ui.Render(mainBlock, grid)
+				} else {
+					ui.Render(mainBlock)
+				}
 				renderMutex.Unlock()
 			}
 		}()
@@ -585,7 +594,12 @@ func handleProcessListEvents(e ui.Event) {
 func renderUI() {
 	renderMutex.Lock()
 	defer renderMutex.Unlock()
-	ui.Render(mainBlock, grid)
+	w, h := ui.TerminalDimensions()
+	if w > 2 && h > 2 {
+		ui.Render(mainBlock, grid)
+	} else {
+		ui.Render(mainBlock)
+	}
 }
 
 func Run() {
@@ -869,7 +883,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				grid.SetRect(0, 0, termWidth, termHeight)
 			}
 			ui.Clear()
-			ui.Render(mainBlock, grid)
+			if termWidth > 2 && termHeight > 2 {
+				ui.Render(mainBlock, grid)
+			} else {
+				ui.Render(mainBlock)
+			}
 			renderMutex.Unlock()
 
 		case ui.KeyboardEvent:
@@ -877,7 +895,13 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			fakeEvent := ui.Event{Type: ui.KeyboardEvent, ID: key}
 			renderMutex.Lock()
 			handleProcessListEvents(fakeEvent)
-			ui.Render(mainBlock, grid)
+			ui.Clear()
+			w, h := ui.TerminalDimensions()
+			if w > 2 && h > 2 {
+				ui.Render(mainBlock, grid)
+			} else {
+				ui.Render(mainBlock)
+			}
 			renderMutex.Unlock()
 
 			switch key {
@@ -899,7 +923,11 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 					grid.SetRect(1, 1, termWidth-1, termHeight-1)
 				}
 				ui.Clear()
-				ui.Render(mainBlock, grid)
+				if termWidth > 2 && termHeight > 2 {
+					ui.Render(mainBlock, grid)
+				} else {
+					ui.Render(mainBlock)
+				}
 				renderMutex.Unlock()
 			case "p":
 				togglePartyMode()
@@ -923,7 +951,12 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				renderMutex.Lock()
 				updateProcessList()
 				ui.Clear()
-				ui.Render(mainBlock, grid)
+				termWidth, termHeight = ui.TerminalDimensions()
+				if termWidth > 2 && termHeight > 2 {
+					ui.Render(mainBlock, grid)
+				} else {
+					ui.Render(mainBlock)
+				}
 				renderMutex.Unlock()
 			case "l":
 				renderMutex.Lock()
@@ -932,7 +965,12 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				saveConfig()
 				renderMutex.Lock()
 				ui.Clear()
-				ui.Render(mainBlock, grid)
+				w, h := ui.TerminalDimensions()
+				if w > 2 && h > 2 {
+					ui.Render(mainBlock, grid)
+				} else {
+					ui.Render(mainBlock)
+				}
 				renderMutex.Unlock()
 			case "h", "?":
 				toggleHelpMenu()
@@ -965,7 +1003,12 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 		case ui.MouseEvent:
 			renderMutex.Lock()
 			handleProcessListEvents(e)
-			ui.Render(mainBlock, grid)
+			w, h := ui.TerminalDimensions()
+			if w > 2 && h > 2 {
+				ui.Render(mainBlock, grid)
+			} else {
+				ui.Render(mainBlock)
+			}
 			renderMutex.Unlock()
 		}
 	}
