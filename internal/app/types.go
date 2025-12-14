@@ -161,6 +161,9 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 	rows := (totalCores + cols - 1) / cols
 	if rows > availableHeight {
 		rows = availableHeight
+		if rows == 0 {
+			return
+		}
 		cols = (totalCores + rows - 1) / rows
 		rows = (totalCores + cols - 1) / cols
 	}
