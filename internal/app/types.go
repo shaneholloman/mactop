@@ -161,7 +161,8 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 	rows := (totalCores + cols - 1) / cols
 	if rows > availableHeight {
 		rows = availableHeight
-		cols = (totalCores + rows - 1) / rows // Recalculate columns
+		cols = (totalCores + rows - 1) / rows
+		rows = (totalCores + cols - 1) / cols
 	}
 	labelWidth := 3 // Width for core labels
 
