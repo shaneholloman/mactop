@@ -408,6 +408,14 @@ func updateProcessList() {
 		themeColorStr = "silver"
 	case ui.ColorWhite:
 		themeColorStr = "white"
+	case ui.ColorLime:
+		themeColorStr = "lime"
+	case ui.ColorOrange:
+		themeColorStr = "orange"
+	case ui.ColorViolet:
+		themeColorStr = "violet"
+	case ui.ColorPink:
+		themeColorStr = "pink"
 	}
 	termWidth, _ := ui.TerminalDimensions()
 	availableWidth := termWidth - 2

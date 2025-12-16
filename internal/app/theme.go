@@ -16,9 +16,13 @@ var colorMap = map[string]ui.Color{
 	"gold":    ui.ColorGold,
 	"silver":  ui.ColorSilver,
 	"white":   ui.ColorWhite,
+	"lime":    ui.ColorLime,
+	"orange":  ui.ColorOrange,
+	"violet":  ui.ColorViolet,
+	"pink":    ui.ColorPink,
 }
 
-var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white"}
+var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white", "lime", "orange", "violet", "pink"}
 
 var (
 	BracketColor       ui.Color = ui.ColorWhite
@@ -178,7 +182,18 @@ func GetProcessTextColor(isCurrentUser bool) string {
 	}
 
 	if isCurrentUser {
-		return currentConfig.Theme
+		switch currentConfig.Theme {
+		case "lime":
+			return "lime"
+		case "orange":
+			return "orange"
+		case "violet":
+			return "violet"
+		case "pink":
+			return "pink"
+		default:
+			return currentConfig.Theme
+		}
 	}
 	return "white"
 }

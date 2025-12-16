@@ -14,9 +14,12 @@ const (
 	LayoutCompact         = "compact"
 	LayoutDashboard       = "dashboard"
 	LayoutGaugesOnly      = "gauges_only"
+	LayoutGPUFocus        = "gpu_focus"
+	LayoutCPUFocus        = "cpu_focus"
+	LayoutSmall           = "small"
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutSmall}
 
 func setupGrid() {
 	totalLayouts = len(layoutOrder)
@@ -163,6 +166,49 @@ func applyLayout(layoutName string) {
 			ui.NewRow(1.0/3,
 				ui.NewCol(1.0/2, gpuSparklineGroup),
 				ui.NewCol(1.0/2, sparklineGroup),
+			),
+		)
+	case LayoutGPUFocus:
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, gpuGauge),
+				ui.NewCol(1.0/2, gpuSparklineGroup),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/4, cpuGauge),
+				ui.NewCol(1.0/4, memoryGauge),
+				ui.NewCol(1.0/4, NetworkInfo),
+				ui.NewCol(1.0/4, modelText),
+			),
+			ui.NewRow(2.0/4,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutCPUFocus:
+		grid.Set(
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/3, cpuGauge),
+				ui.NewCol(2.0/3, cpuCoreWidget),
+			),
+			ui.NewRow(1.0/6,
+				ui.NewCol(1.0/4, gpuGauge),
+				ui.NewCol(1.0/4, memoryGauge),
+				ui.NewCol(1.0/4, sparklineGroup),
+				ui.NewCol(1.0/4, PowerChart),
+			),
+			ui.NewRow(3.0/6,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutSmall:
+		grid.Set(
+			ui.NewRow(1.0,
+				ui.NewCol(1.0,
+					ui.NewRow(1.0/4, cpuGauge),
+					ui.NewRow(1.0/4, gpuGauge),
+					ui.NewRow(1.0/4, memoryGauge),
+					ui.NewRow(1.0/4, aneGauge),
+				),
 			),
 		)
 	default: // LayoutDefault
