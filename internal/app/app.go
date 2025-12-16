@@ -1002,6 +1002,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 					updateInterval = 100
 				}
 				ticker.Reset(time.Duration(updateInterval) * time.Millisecond)
+				if partyMode && partyTicker != nil {
+					partyTicker.Reset(time.Duration(updateInterval/2) * time.Millisecond)
+				}
 
 				renderMutex.Lock()
 				updateHelpText()
@@ -1014,6 +1017,9 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 					updateInterval = 5000
 				}
 				ticker.Reset(time.Duration(updateInterval) * time.Millisecond)
+				if partyMode && partyTicker != nil {
+					partyTicker.Reset(time.Duration(updateInterval/2) * time.Millisecond)
+				}
 
 				renderMutex.Lock()
 				updateHelpText()
