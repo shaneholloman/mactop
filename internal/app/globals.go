@@ -14,47 +14,59 @@ import (
 )
 
 var (
-	version                                      = "v2.0.0"
-	cpuGauge, gpuGauge, memoryGauge, aneGauge    *w.Gauge
-	mainBlock                                    *ui.Block
-	modelText, PowerChart, NetworkInfo, helpText *w.Paragraph
-	grid                                         *ui.Grid
-	processList                                  *w.List
-	sparkline, gpuSparkline                      *w.Sparkline
-	sparklineGroup, gpuSparklineGroup            *w.SparklineGroup
-	cpuCoreWidget                                *CPUCoreWidget
-	powerValues                                  = make([]float64, 35)
-	lastUpdateTime                               time.Time
-	stderrLogger                                 = log.New(os.Stderr, "", 0)
-	showHelp, partyMode                          = false, false
-	updateInterval                               = 1000
-	done                                         = make(chan struct{})
-	partyTicker                                  *time.Ticker
-	lastCPUTimes                                 []CPUUsage
-	firstRun                                     = true
-	sortReverse                                  = false
-	columns                                      = []string{"PID", "USER", "VIRT", "RES", "CPU", "MEM", "TIME", "CMD"}
-	selectedColumn                               = 4
-	maxPowerSeen                                 = 0.1
-	gpuValues                                    = make([]float64, 100)
-	prometheusPort                               string
-	headless                                     bool
-	headlessCount                                int
-	interruptChan                                = make(chan struct{}, 10)
-	lastNetStats                                 net.IOCountersStat
-	lastDiskStats                                disk.IOCountersStat
-	lastNetDiskTime                              time.Time
-	netDiskMutex                                 sync.Mutex
-	killPending                                  bool
-	killPID                                      int
-	currentUser                                  string
-	lastProcesses                                []ProcessMetrics
-	networkUnit                                  string
-	diskUnit                                     string
-	tempUnit                                     string
-	currentLayoutNum                             int
-	totalLayouts                                 int
-	currentColorName                             string
+	version                                                     = "v2.0.0"
+	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
+	mainBlock                                                   *ui.Block
+	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
+	grid                                                        *ui.Grid
+	processList                                                 *w.List
+	sparkline, gpuSparkline                                     *w.Sparkline
+	sparklineGroup, gpuSparklineGroup                           *w.SparklineGroup
+	cpuCoreWidget                                               *CPUCoreWidget
+	powerValues                                                 = make([]float64, 35)
+	lastUpdateTime                                              time.Time
+	stderrLogger                                                = log.New(os.Stderr, "", 0)
+	showHelp, partyMode                                         = false, false
+	updateInterval                                              = 1000
+	done                                                        = make(chan struct{})
+	partyTicker                                                 *time.Ticker
+	lastCPUTimes                                                []CPUUsage
+	firstRun                                                    = true
+	sortReverse                                                 = false
+	columns                                                     = []string{"PID", "USER", "VIRT", "RES", "CPU", "MEM", "TIME", "CMD"}
+	selectedColumn                                              = 4
+	maxPowerSeen                                                = 0.1
+	gpuValues                                                   = make([]float64, 100)
+	prometheusPort                                              string
+	headless                                                    bool
+	headlessCount                                               int
+	interruptChan                                               = make(chan struct{}, 10)
+	lastNetStats                                                net.IOCountersStat
+	lastDiskStats                                               disk.IOCountersStat
+	lastNetDiskTime                                             time.Time
+	netDiskMutex                                                sync.Mutex
+	killPending                                                 bool
+	killPID                                                     int
+	currentUser                                                 string
+	lastProcesses                                               []ProcessMetrics
+	networkUnit                                                 string
+	diskUnit                                                    string
+	tempUnit                                                    string
+	currentLayoutNum                                            int
+	totalLayouts                                                int
+	currentColorName                                            string
+	lastCPUMetrics                                              CPUMetrics
+	lastGPUMetrics                                              GPUMetrics
+	lastNetDiskMetrics                                          NetDiskMetrics
+
+	cachedHostname      string
+	cachedCurrentUser   string
+	cachedShell         string
+	cachedKernelVersion string
+	cachedOSVersion     string
+
+	cachedModelName  string
+	cachedSystemInfo SystemInfo
 )
 
 var (

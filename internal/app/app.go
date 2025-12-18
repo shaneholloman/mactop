@@ -26,6 +26,7 @@ import (
 	ui "github.com/metaspartan/gotui/v4"
 	w "github.com/metaspartan/gotui/v4/widgets"
 	"github.com/shirou/gopsutil/v4/disk"
+	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
 )
@@ -95,13 +96,27 @@ func GetCPUPercentages() ([]float64, error) {
 
 func setupUI() {
 	appleSiliconModel := getSOCInfo()
-	modelText, helpText = w.NewParagraph(), w.NewParagraph()
+	modelText, helpText, infoParagraph = w.NewParagraph(), w.NewParagraph(), w.NewParagraph()
 	modelText.Title = "Apple Silicon"
 	helpText.Title = "mactop help menu"
+	infoParagraph.Text = "Loading..."
 	modelName := appleSiliconModel.Name
 	if modelName == "" {
 		modelName = "Unknown Model"
 	}
+
+	cachedHostname, _ = os.Hostname()
+	cachedCurrentUser = os.Getenv("USER")
+	cachedShell = os.Getenv("SHELL")
+
+	kv, _ := exec.Command("uname", "-r").Output()
+	cachedKernelVersion = strings.TrimSpace(string(kv))
+
+	ov, _ := exec.Command("sw_vers", "-productVersion").Output()
+	cachedOSVersion = strings.TrimSpace(string(ov))
+
+	cachedModelName = modelName
+	cachedSystemInfo = appleSiliconModel
 	eCoreCount := appleSiliconModel.ECoreCount
 	pCoreCount := appleSiliconModel.PCoreCount
 	gpuCoreCount := appleSiliconModel.GPUCoreCount
@@ -138,7 +153,7 @@ func setupUI() {
 	mainBlock.TitleRight = " " + version + " "
 	mainBlock.TitleAlignment = ui.AlignLeft
 	mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum, totalLayouts, currentColorName)
-	mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+	mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
 	mainBlock.TitleBottomAlignment = ui.AlignCenter
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
@@ -203,6 +218,177 @@ func updateModelText() {
 
 func updateIntervalText() {
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
+}
+
+func updateInfoUI() {
+	if currentConfig.DefaultLayout != LayoutInfo {
+		return
+	}
+
+	uptimeSeconds, _ := host.Uptime()
+	uptimeStr := formatTime(float64(uptimeSeconds))
+
+	appleSiliconModel := cachedSystemInfo
+
+	memMetrics := getMemoryMetrics()
+	usedMem := float64(memMetrics.Used) / 1024 / 1024 / 1024
+	totalMem := float64(memMetrics.Total) / 1024 / 1024 / 1024
+	swapUsed := float64(memMetrics.SwapUsed) / 1024 / 1024 / 1024
+	swapTotal := float64(memMetrics.SwapTotal) / 1024 / 1024 / 1024
+
+	thermalStr, _ := getThermalStateString()
+	if lastCPUMetrics.CPUTemp > 0 {
+		thermalStr = fmt.Sprintf("%s (%.1f°C)", thermalStr, lastCPUMetrics.CPUTemp)
+	}
+
+	themeColor := "green"
+	if currentConfig.Theme != "" {
+		themeColor = currentConfig.Theme
+	}
+	if IsLightMode && themeColor == "white" {
+		themeColor = "black"
+	}
+
+	tc := GetThemeColor(themeColor)
+
+	asciiArt := []string{
+		"                    'c.       ",
+		"                 ,xNMM.       ",
+		"               .OMMMMo        ",
+		"               OMMM0,         ",
+		"     .;loddo:' MACTOPbyCK;.   ",
+		"   cKMMMMMMMMMMNWMMMMMMMMMM0: ",
+		" .KMMMMMMMMMMMMMMMMMMMMMMMWd. ",
+		" XMMMMMMMMMMMMMMMMMMMMMMMX.   ",
+		";MMMMMMMMMMMMMMMMMMMMMMMM:    ",
+		":MMMMMMMMMMMMMMMMMMMMMMMM:    ",
+		".MMMMMMMMMMMMMMMMMMMMMMMMX.   ",
+		" kMMMMMMMMMMMMMMMMMMMMMMMMWd. ",
+		" .XMMMMMMMMMMMMMMMMMMMMMMMMMMk",
+		"  .XMMMMMMMMMMMMMMMMMMMMMMMMK.",
+		"    kMMMMMMMMMMMMMMMMMMMMMMd  ",
+		"     ;KMMMMMMMWXXWMMMMMMMk.   ",
+		"       .cooc,.    .,coo:.     ",
+	}
+
+	formatLine := func(label, value string) string {
+		paddedLabel := fmt.Sprintf("%-13s", label)
+		return fmt.Sprintf("[%s](fg:%s,mod:bold): [%s](fg:%s)", paddedLabel, themeColor, value, themeColor)
+	}
+
+	var sumWatts float64
+	countWatts := 0
+	for _, v := range powerValues {
+		if v > 0 {
+			actualWatts := (v / 8.0) * maxPowerSeen
+			sumWatts += actualWatts
+			countWatts++
+		}
+	}
+	avgWatts := 0.0
+	if countWatts > 0 {
+		avgWatts = sumWatts / float64(countWatts)
+	}
+
+	infoLines := []string{
+		fmt.Sprintf("[%s@%s](fg:%s,mod:bold)", cachedCurrentUser, cachedHostname, themeColor),
+		"-------------------------",
+		formatLine("OS", fmt.Sprintf("macOS %s", cachedOSVersion)),
+		formatLine("Host", cachedModelName),
+		formatLine("Kernel", cachedKernelVersion),
+		formatLine("Uptime", uptimeStr),
+		formatLine("Shell", cachedShell),
+		formatLine("CPU", cachedModelName),
+		formatLine("GPU", fmt.Sprintf("%d Core GPU", appleSiliconModel.GPUCoreCount)),
+		formatLine("Memory", fmt.Sprintf("%.2f GB / %.2f GB", usedMem, totalMem)),
+		formatLine("Swap", fmt.Sprintf("%.2f GB / %.2f GB", swapUsed, swapTotal)),
+		"",
+		formatLine("CPU Usage", fmt.Sprintf("%.2f%%", float64(cpuGauge.Percent))),
+		formatLine("GPU Usage", fmt.Sprintf("%d%%", int(lastGPUMetrics.ActivePercent))),
+		formatLine("ANE Usage", fmt.Sprintf("%d%%", int(lastCPUMetrics.ANEW/8.0*100))),
+		formatLine("Power", fmt.Sprintf("%.2f W (Avg %.0f W)", lastCPUMetrics.PackageW, avgWatts)),
+		formatLine("Thermals", thermalStr),
+		formatLine("Network", fmt.Sprintf("↑ %s/s ↓ %s/s", formatBytes(lastNetDiskMetrics.OutBytesPerSec, "auto"), formatBytes(lastNetDiskMetrics.InBytesPerSec, "auto"))),
+		formatLine("Disk", fmt.Sprintf("R %s/s W %s/s", formatBytes(lastNetDiskMetrics.ReadKBytesPerSec*1024, "auto"), formatBytes(lastNetDiskMetrics.WriteKBytesPerSec*1024, "auto"))),
+	}
+
+	volumes := getVolumes()
+	if len(volumes) > 0 {
+		infoLines = append(infoLines, "-------------------------")
+		for _, v := range volumes {
+			used := formatBytes(v.Used*1e9, "auto")
+			total := formatBytes(v.Total*1e9, "auto")
+			avail := formatBytes(v.Available*1e9, "auto")
+			infoLines = append(infoLines, formatLine(v.Name, fmt.Sprintf("%s / %s (%s free)", used, total, avail)))
+		}
+	}
+
+	var combinedText strings.Builder
+
+	termWidth, termHeight := ui.TerminalDimensions()
+	showAscii := termWidth >= 82
+
+	contentWidth := 80
+	if !showAscii {
+		contentWidth = 45
+	}
+
+	maxHeight := len(infoLines)
+	if showAscii {
+		if len(asciiArt) > maxHeight {
+			maxHeight = len(asciiArt)
+		}
+	}
+	contentHeight := maxHeight
+
+	paddingTop := (termHeight - contentHeight) / 2
+	if paddingTop > 5 {
+		paddingTop = paddingTop - 5
+	}
+	if paddingTop < 0 {
+		paddingTop = 0
+	}
+	combinedText.WriteString(strings.Repeat("\n", paddingTop))
+
+	paddingLeft := (termWidth - contentWidth) / 2
+	if paddingLeft < 0 {
+		paddingLeft = 0
+	}
+	paddingStr := strings.Repeat(" ", paddingLeft)
+
+	rainbowColors := []string{"red", "magenta", "blue", "skyblue", "green", "yellow"}
+
+	for i := 0; i < maxHeight; i++ {
+		asciiLine := ""
+		if showAscii {
+			if i < len(asciiArt) {
+				color := rainbowColors[i%len(rainbowColors)]
+				asciiLine = fmt.Sprintf("[%s](fg:%s)", asciiArt[i], color)
+			} else {
+				asciiLine = fmt.Sprintf("%30s", " ")
+			}
+		}
+
+		infoLine := ""
+		if i < len(infoLines) {
+			infoLine = infoLines[i]
+		}
+
+		if showAscii {
+			combinedText.WriteString(fmt.Sprintf("%s%s   %s\n", paddingStr, asciiLine, infoLine))
+		} else {
+			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
+		}
+	}
+
+	infoParagraph.Text = combinedText.String()
+	infoParagraph.BorderRounded = true
+
+	infoParagraph.BorderStyle.Fg = tc
+	infoParagraph.TitleStyle.Fg = tc
+
+	mainBlock.BorderStyle.Fg = tc
+	mainBlock.TitleStyle.Fg = tc
 }
 
 func updateHelpText() {
@@ -278,6 +464,7 @@ func toggleHelpMenu() {
 	renderMutex.Unlock()
 }
 
+// Easter Egg Party Mode not shown in bottom title
 func togglePartyMode() {
 	partyMode = !partyMode
 	if partyMode {
@@ -781,7 +968,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	if termWidth < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
 	}
 	if termWidth > 2 && termHeight > 2 {
 		grid.SetRect(1, 1, termWidth-1, termHeight-1)
@@ -847,23 +1034,29 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			case <-ticker.C:
 				select {
 				case cpuMetrics := <-cpuMetricsChan:
+					lastCPUMetrics = cpuMetrics
 					renderMutex.Lock()
 					updateCPUUI(cpuMetrics)
 					updateTotalPowerChart(cpuMetrics.PackageW)
+					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
 				select {
 				case gpuMetrics := <-gpuMetricsChan:
+					lastGPUMetrics = gpuMetrics
 					renderMutex.Lock()
 					updateGPUUI(gpuMetrics)
+					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
 				select {
 				case netdiskMetrics := <-netdiskMetricsChan:
+					lastNetDiskMetrics = netdiskMetrics
 					renderMutex.Lock()
 					updateNetDiskUI(netdiskMetrics)
+					updateInfoUI()
 					renderMutex.Unlock()
 				default:
 				}
@@ -902,7 +1095,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 			if termWidth < 93 {
 				mainBlock.TitleBottom = ""
 			} else {
-				mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+				mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
 			}
 			if termWidth > 2 && termHeight > 2 {
 				grid.SetRect(1, 1, termWidth-1, termHeight-1)
@@ -945,7 +1138,7 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				if termWidth < 93 {
 					mainBlock.TitleBottom = ""
 				} else {
-					mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+					mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
 				}
 				if termWidth > 2 && termHeight > 2 {
 					grid.SetRect(1, 1, termWidth-1, termHeight-1)
@@ -966,12 +1159,13 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				if termWidth < 93 {
 					mainBlock.TitleBottom = ""
 				} else {
-					mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+					mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
 				}
 				if termWidth > 2 && termHeight > 2 {
 					grid.SetRect(1, 1, termWidth-1, termHeight-1)
 				}
 				cycleTheme()
+				updateInfoUI()
 				renderMutex.Unlock()
 
 				saveConfig()
@@ -1002,6 +1196,23 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				renderMutex.Unlock()
 			case "h", "?":
 				toggleHelpMenu()
+			case "i":
+				if currentConfig.DefaultLayout == LayoutInfo {
+					currentConfig.DefaultLayout = LayoutDefault
+					currentLayoutNum = 0
+				} else {
+					currentConfig.DefaultLayout = LayoutInfo
+				}
+				applyLayout(currentConfig.DefaultLayout)
+				renderMutex.Lock()
+				ui.Clear()
+				w, h := ui.TerminalDimensions()
+				if w > 2 && h > 2 {
+					ui.Render(mainBlock, grid)
+				} else {
+					ui.Render(mainBlock)
+				}
+				renderMutex.Unlock()
 			case "-", "_":
 				updateInterval -= 100
 				if updateInterval < 100 {
@@ -1132,8 +1343,6 @@ func getNetDiskMetrics() NetDiskMetrics {
 }
 
 func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMetrics) {
-	time.Sleep(time.Duration(updateInterval) * time.Millisecond)
-
 	for {
 		start := time.Now()
 
@@ -1160,8 +1369,6 @@ func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMe
 }
 
 func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics) {
-	time.Sleep(time.Duration(updateInterval) * time.Millisecond)
-
 	for {
 		start := time.Now()
 
@@ -1226,8 +1433,6 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 }
 
 func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics) {
-	time.Sleep(time.Duration(updateInterval) * time.Millisecond)
-
 	for {
 		start := time.Now()
 

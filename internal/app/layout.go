@@ -17,6 +17,7 @@ const (
 	LayoutGPUFocus        = "gpu_focus"
 	LayoutCPUFocus        = "cpu_focus"
 	LayoutSmall           = "small"
+	LayoutInfo            = "info"
 )
 
 var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutSmall}
@@ -56,7 +57,7 @@ func applyLayout(layoutName string) {
 		if termWidth < 93 {
 			mainBlock.TitleBottom = ""
 		} else {
-			mainBlock.TitleBottom = " Help: h | Layout: l | Color: c | Party: p | Exit: q "
+			mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
 		}
 	}
 	grid = ui.NewGrid()
@@ -209,6 +210,12 @@ func applyLayout(layoutName string) {
 					ui.NewRow(1.0/4, memoryGauge),
 					ui.NewRow(1.0/4, aneGauge),
 				),
+			),
+		)
+	case LayoutInfo:
+		grid.Set(
+			ui.NewRow(1.0,
+				ui.NewCol(1.0, infoParagraph),
 			),
 		)
 	default: // LayoutDefault
