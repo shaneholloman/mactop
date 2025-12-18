@@ -59,6 +59,7 @@ int initIOReport();
 PowerMetrics samplePowerMetrics(int durationMs);
 void cleanupIOReport();
 int getThermalState();
+void debugIOReport();
 */
 import "C"
 
@@ -108,4 +109,8 @@ func cleanupSocMetrics() {
 
 func getSocThermalState() int {
 	return int(C.getThermalState())
+}
+
+func DebugIOReport() {
+	C.debugIOReport()
 }

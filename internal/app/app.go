@@ -644,6 +644,7 @@ Options:
   -p, --prometheus <port> Run Prometheus metrics server on specified port (e.g. :9090)
       --headless        Run in headless mode (no TUI, output JSON to stdout)
       --count <n>       Number of samples to collect in headless mode (0 = infinite)
+      --dump-ioreport, -d Dump all available IOReport channels and exit
       --unit-network <unit> Network unit: auto, byte, kb, mb, gb (default: auto)
       --unit-disk <unit>    Disk unit: auto, byte, kb, mb, gb (default: auto)
       --unit-temp <unit>    Temperature unit: celsius, fahrenheit (default: celsius)
@@ -707,6 +708,10 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 				fmt.Println("Error: --interval flag requires an interval value")
 				os.Exit(1)
 			}
+		case "--dump-ioreport", "-d":
+			fmt.Println("Dumping IOReport channels...")
+			DebugIOReport()
+			os.Exit(0)
 		}
 	}
 
@@ -720,6 +725,8 @@ For more information, see https://github.com/metaspartan/mactop written by Carse
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
+	flag.Bool("d", false, "Dump all available IOReport channels and exit")
+	flag.Bool("dump-ioreport", false, "Dump all available IOReport channels and exit")
 	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
