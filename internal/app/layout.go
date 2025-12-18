@@ -218,7 +218,7 @@ func applyLayout(layoutName string) {
 				ui.NewCol(1.0, infoParagraph),
 			),
 		)
-	default: // LayoutDefault
+	default:
 		grid.Set(
 			ui.NewRow(1.0/4,
 				ui.NewCol(1.0/2, cpuGauge),

@@ -30,37 +30,7 @@ var (
 	IsLightMode        bool     = false
 )
 
-func applyTheme(colorName string, lightMode bool) {
-	color, ok := colorMap[colorName]
-	if !ok {
-		color = ui.ColorGreen // Default
-		colorName = "green"
-	}
-
-	currentConfig.Theme = colorName
-
-	// Adjust for Light Mode
-	if lightMode {
-		BracketColor = ui.ColorBlack
-		SecondaryTextColor = ui.ColorBlack // Or a dark gray like 235
-
-		// In light mode, if the user picks "white", it will be invisible.
-		// Force black if theme is white in light mode?
-		if color == ui.ColorWhite {
-			color = ui.ColorBlack
-		}
-	} else {
-		BracketColor = ui.ColorWhite
-		SecondaryTextColor = 245
-	}
-
-	ui.Theme.Block.Title.Fg = color
-	ui.Theme.Block.Border.Fg = color
-	ui.Theme.Paragraph.Text.Fg = color
-	ui.Theme.Gauge.Label.Fg = color
-	ui.Theme.Gauge.Bar = color
-	ui.Theme.BarChart.Bars = []ui.Color{color}
-
+func applyThemeToGauges(color ui.Color) {
 	if cpuGauge != nil {
 		cpuGauge.BarColor = color
 		cpuGauge.BorderStyle.Fg = color
@@ -82,75 +52,99 @@ func applyTheme(colorName string, lightMode bool) {
 		aneGauge.TitleStyle.Fg = color
 		aneGauge.LabelStyle = ui.NewStyle(SecondaryTextColor)
 	}
+}
 
+func applyThemeToSparklines(color ui.Color) {
+	if sparkline != nil {
+		sparkline.LineColor = color
+		sparkline.TitleStyle = ui.NewStyle(color)
+	}
+	if sparklineGroup != nil {
+		sparklineGroup.BorderStyle.Fg = color
+		sparklineGroup.TitleStyle.Fg = color
+	}
+	if gpuSparkline != nil {
+		gpuSparkline.LineColor = color
+		gpuSparkline.TitleStyle = ui.NewStyle(color)
+	}
+	if gpuSparklineGroup != nil {
+		gpuSparklineGroup.BorderStyle.Fg = color
+		gpuSparklineGroup.TitleStyle.Fg = color
+	}
+}
+
+func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	if processList != nil {
 		processList.TextStyle = ui.NewStyle(color)
-
-		// Determine selected row foreground color
 		selectedFg := ui.ColorBlack
 		if lightMode && color == ui.ColorBlack {
 			selectedFg = ui.ColorWhite
 		}
-
 		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
 		processList.BorderStyle.Fg = color
 		processList.TitleStyle.Fg = color
 	}
-
 	if NetworkInfo != nil {
 		NetworkInfo.TextStyle = ui.NewStyle(color)
 		NetworkInfo.BorderStyle.Fg = color
 		NetworkInfo.TitleStyle.Fg = color
 	}
-
 	if PowerChart != nil {
 		PowerChart.TextStyle = ui.NewStyle(color)
 		PowerChart.BorderStyle.Fg = color
 		PowerChart.TitleStyle.Fg = color
 	}
-
-	if sparkline != nil {
-		sparkline.LineColor = color
-		sparkline.TitleStyle = ui.NewStyle(color)
-	}
-
-	if sparklineGroup != nil {
-		sparklineGroup.BorderStyle.Fg = color
-		sparklineGroup.TitleStyle.Fg = color
-	}
-
-	if gpuSparkline != nil {
-		gpuSparkline.LineColor = color
-		gpuSparkline.TitleStyle = ui.NewStyle(color)
-	}
-
-	if gpuSparklineGroup != nil {
-		gpuSparklineGroup.BorderStyle.Fg = color
-		gpuSparklineGroup.TitleStyle.Fg = color
-	}
-
 	if cpuCoreWidget != nil {
 		cpuCoreWidget.BorderStyle.Fg = color
 		cpuCoreWidget.TitleStyle.Fg = color
 	}
-
 	if modelText != nil {
 		modelText.BorderStyle.Fg = color
 		modelText.TitleStyle.Fg = color
 		modelText.TextStyle = ui.NewStyle(color)
 	}
-
 	if helpText != nil {
 		helpText.BorderStyle.Fg = color
 		helpText.TitleStyle.Fg = color
 		helpText.TextStyle = ui.NewStyle(color)
 	}
-
 	if mainBlock != nil {
 		mainBlock.BorderStyle.Fg = color
 		mainBlock.TitleStyle.Fg = color
 		mainBlock.TitleBottomStyle.Fg = color
 	}
+}
+
+func applyTheme(colorName string, lightMode bool) {
+	color, ok := colorMap[colorName]
+	if !ok {
+		color = ui.ColorGreen
+		colorName = "green"
+	}
+
+	currentConfig.Theme = colorName
+
+	if lightMode {
+		BracketColor = ui.ColorBlack
+		SecondaryTextColor = ui.ColorBlack
+		if color == ui.ColorWhite {
+			color = ui.ColorBlack
+		}
+	} else {
+		BracketColor = ui.ColorWhite
+		SecondaryTextColor = 245
+	}
+
+	ui.Theme.Block.Title.Fg = color
+	ui.Theme.Block.Border.Fg = color
+	ui.Theme.Paragraph.Text.Fg = color
+	ui.Theme.Gauge.Label.Fg = color
+	ui.Theme.Gauge.Bar = color
+	ui.Theme.BarChart.Bars = []ui.Color{color}
+
+	applyThemeToGauges(color)
+	applyThemeToSparklines(color)
+	applyThemeToWidgets(color, lightMode)
 }
 
 func GetThemeColor(colorName string) ui.Color {
@@ -209,7 +203,6 @@ func cycleTheme() {
 	nextIndex := (currentIndex + 1) % len(colorNames)
 	currentColorName = colorNames[nextIndex]
 	applyTheme(colorNames[nextIndex], IsLightMode)
-	// Update layout title to reflect new color name
 	if mainBlock != nil {
 		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
 	}

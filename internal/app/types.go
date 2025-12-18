@@ -141,20 +141,12 @@ func (w *CPUCoreWidget) UpdateUsage(usage []float64) {
 	copy(w.cores, usage)
 }
 
-func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
-	w.Block.Draw(buf)
-	if len(w.cores) == 0 {
-		return
-	}
-	themeColor := w.BorderStyle.Fg
-	totalCores := len(w.cores)
-	cols := 4 // default for <= 16 cores
+func (w *CPUCoreWidget) calculateLayout(availableWidth, availableHeight, totalCores int) (int, int, []int, []int) {
+	cols := 4
 	if totalCores > 16 {
-		cols = 8 // switch to 8 columns for > 16 cores
+		cols = 8
 	}
-	availableWidth := w.Inner.Dx()
-	availableHeight := w.Inner.Dy()
-	minColWidth := 20 // minimum width needed for a readable core display
+	minColWidth := 20
 	if (availableWidth / cols) < minColWidth {
 		cols = max(1, availableWidth/minColWidth)
 	}
@@ -162,12 +154,11 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 	if rows > availableHeight {
 		rows = availableHeight
 		if rows == 0 {
-			return
+			rows = 1
 		}
 		cols = (totalCores + rows - 1) / rows
 		rows = (totalCores + cols - 1) / cols
 	}
-	labelWidth := 3 // Width for core labels
 
 	colWidths := make([]int, cols)
 	colXs := make([]int, cols)
@@ -183,8 +174,71 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 		colWidths[c] = w
 		currentX += w
 	}
+	return cols, rows, colXs, colWidths
+}
 
+func (w *CPUCoreWidget) drawCore(buf *ui.Buffer, x, y, barWidth, index int, usage float64, themeColor ui.Color) {
+	labelWidth := 3
+	label := fmt.Sprintf("%-2d", index)
+	buf.SetString(label, ui.NewStyle(themeColor), image.Pt(x, y))
+
+	availWidth := barWidth - labelWidth
+	if x+labelWidth+availWidth > w.Inner.Max.X {
+		availWidth = w.Inner.Max.X - x - labelWidth
+	}
+
+	if availWidth < 9 {
+		return
+	}
+
+	textWidth := 7
+	innerBarWidth := availWidth - 2 - textWidth
+	if innerBarWidth < 0 {
+		innerBarWidth = 0
+	}
+	usedWidth := int((usage / 100.0) * float64(innerBarWidth))
+
+	buf.SetString("[", ui.NewStyle(BracketColor), image.Pt(x+labelWidth, y))
+
+	for bx := 0; bx < innerBarWidth; bx++ {
+		char := " "
+		var color ui.Color
+		if bx < usedWidth {
+			char = "❚"
+			switch {
+			case usage >= 60:
+				color = ui.ColorRed
+			case usage >= 40:
+				color = ui.ColorYellow
+			case usage >= 30:
+				color = ui.ColorSkyBlue
+			default:
+				color = themeColor
+			}
+		} else {
+			color = themeColor
+		}
+		buf.SetString(char, ui.NewStyle(color), image.Pt(x+labelWidth+1+bx, y))
+	}
+
+	percentage := fmt.Sprintf("%5.1f%%", usage)
+	buf.SetString(percentage, ui.NewStyle(SecondaryTextColor), image.Pt(x+labelWidth+1+innerBarWidth, y))
+	buf.SetString("]", ui.NewStyle(BracketColor), image.Pt(x+labelWidth+availWidth-1, y))
+}
+
+func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
+	w.Block.Draw(buf)
+	if len(w.cores) == 0 {
+		return
+	}
+	themeColor := w.BorderStyle.Fg
+	totalCores := len(w.cores)
+	availableWidth := w.Inner.Dx()
+	availableHeight := w.Inner.Dy()
+
+	cols, rows, colXs, colWidths := w.calculateLayout(availableWidth, availableHeight, totalCores)
 	fullCols := totalCores - (rows-1)*cols
+
 	for i := 0; i < totalCores; i++ {
 		col := i % cols
 		row := i / cols
@@ -197,66 +251,10 @@ func (w *CPUCoreWidget) Draw(buf *ui.Buffer) {
 		x := w.Inner.Min.X + colXs[col]
 		y := w.Inner.Min.Y + row
 
-		barWidth := colWidths[col]
-
 		if y >= w.Inner.Max.Y {
 			continue
 		}
 
-		usage := w.cores[actualIndex]
-
-		label := fmt.Sprintf("%-2d", actualIndex)
-		buf.SetString(label, ui.NewStyle(themeColor), image.Pt(x, y))
-
-		availWidth := barWidth - labelWidth
-
-		if x+labelWidth+availWidth > w.Inner.Max.X {
-			availWidth = w.Inner.Max.X - x - labelWidth
-		}
-
-		if availWidth < 9 { // 2 brackets + 7 for text/min bar
-			continue
-		}
-
-		textWidth := 7
-
-		innerBarWidth := availWidth - 2 - textWidth
-		if innerBarWidth < 0 {
-			innerBarWidth = 0
-		}
-
-		usedWidth := int((usage / 100.0) * float64(innerBarWidth))
-
-		buf.SetString("[", ui.NewStyle(BracketColor),
-			image.Pt(x+labelWidth, y))
-
-		for bx := 0; bx < innerBarWidth; bx++ {
-			char := " "
-			var color ui.Color
-			if bx < usedWidth {
-				char = "❚"
-				switch {
-				case usage >= 60:
-					color = ui.ColorRed
-				case usage >= 40:
-					color = ui.ColorYellow
-				case usage >= 30:
-					color = ui.ColorSkyBlue
-				default:
-					color = themeColor
-				}
-			} else {
-				color = themeColor
-			}
-			buf.SetString(char, ui.NewStyle(color),
-				image.Pt(x+labelWidth+1+bx, y))
-		}
-
-		percentage := fmt.Sprintf("%5.1f%%", usage)
-		buf.SetString(percentage, ui.NewStyle(SecondaryTextColor),
-			image.Pt(x+labelWidth+1+innerBarWidth, y))
-
-		buf.SetString("]", ui.NewStyle(BracketColor),
-			image.Pt(x+labelWidth+availWidth-1, y))
+		w.drawCore(buf, x, y, colWidths[col], actualIndex, w.cores[actualIndex], themeColor)
 	}
 }

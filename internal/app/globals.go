@@ -58,6 +58,11 @@ var (
 	lastCPUMetrics                                              CPUMetrics
 	lastGPUMetrics                                              GPUMetrics
 	lastNetDiskMetrics                                          NetDiskMetrics
+	cpuMetricsChan                                              = make(chan CPUMetrics, 1)
+	gpuMetricsChan                                              = make(chan GPUMetrics, 1)
+	netdiskMetricsChan                                          = make(chan NetDiskMetrics, 1)
+	processMetricsChan                                          = make(chan []ProcessMetrics, 1)
+	ticker                                                      *time.Ticker
 
 	cachedHostname      string
 	cachedCurrentUser   string
