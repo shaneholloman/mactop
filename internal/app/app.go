@@ -108,7 +108,6 @@ func setupUI() {
 	updateModelText()
 	updateHelpText()
 	stderrLogger.Printf("Model: %s\nE-Core Count: %d\nP-Core Count: %d\nGPU Core Count: %d", modelName, eCoreCount, pCoreCount, gpuCoreCount)
-	stderrLogger.Printf("Model: %s\nE-Core Count: %d\nP-Core Count: %d\nGPU Core Count: %d", modelName, eCoreCount, pCoreCount, gpuCoreCount)
 
 	processList = w.NewList()
 	processList.Title = "Process List"
