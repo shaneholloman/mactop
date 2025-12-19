@@ -535,9 +535,9 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	thermalStateVal, _ := getThermalStateString()
 	thermalStateNum := 0
 	switch thermalStateVal {
-	case "Moderate":
+	case "Fair":
 		thermalStateNum = 1
-	case "Heavy":
+	case "Serious":
 		thermalStateNum = 2
 	case "Critical":
 		thermalStateNum = 3
