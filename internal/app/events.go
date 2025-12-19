@@ -16,8 +16,8 @@ func startBackgroundUpdates(done chan struct{}) {
 			case <-ticker.C:
 				select {
 				case cpuMetrics := <-cpuMetricsChan:
-					lastCPUMetrics = cpuMetrics
 					renderMutex.Lock()
+					lastCPUMetrics = cpuMetrics
 					updateCPUUI(cpuMetrics)
 					updateTotalPowerChart(cpuMetrics.PackageW)
 					updateInfoUI()
@@ -26,8 +26,8 @@ func startBackgroundUpdates(done chan struct{}) {
 				}
 				select {
 				case gpuMetrics := <-gpuMetricsChan:
-					lastGPUMetrics = gpuMetrics
 					renderMutex.Lock()
+					lastGPUMetrics = gpuMetrics
 					updateGPUUI(gpuMetrics)
 					updateInfoUI()
 					renderMutex.Unlock()
@@ -35,8 +35,8 @@ func startBackgroundUpdates(done chan struct{}) {
 				}
 				select {
 				case netdiskMetrics := <-netdiskMetricsChan:
-					lastNetDiskMetrics = netdiskMetrics
 					renderMutex.Lock()
+					lastNetDiskMetrics = netdiskMetrics
 					updateNetDiskUI(netdiskMetrics)
 					updateInfoUI()
 					renderMutex.Unlock()
@@ -44,12 +44,12 @@ func startBackgroundUpdates(done chan struct{}) {
 				}
 				select {
 				case processes := <-processMetricsChan:
+					renderMutex.Lock()
 					if processList.SelectedRow == 0 {
 						lastProcesses = processes
-						renderMutex.Lock()
 						updateProcessList()
-						renderMutex.Unlock()
 					}
+					renderMutex.Unlock()
 				default:
 				}
 				renderUI()
@@ -131,6 +131,7 @@ func handleModeKeys(key string, done chan struct{}) {
 	case "h", "?":
 		toggleHelpMenu()
 	case "i":
+		renderMutex.Lock()
 		if currentConfig.DefaultLayout == LayoutInfo {
 			currentConfig.DefaultLayout = LayoutDefault
 			currentLayoutNum = 0
@@ -144,7 +145,6 @@ func handleModeKeys(key string, done chan struct{}) {
 			}
 		}
 		applyLayout(currentConfig.DefaultLayout)
-		renderMutex.Lock()
 		w, h := ui.TerminalDimensions()
 		drawScreen(w, h)
 		renderMutex.Unlock()

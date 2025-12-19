@@ -217,6 +217,10 @@ func updateHelpText() {
 func toggleHelpMenu() {
 	updateHelpText()
 	showHelp = !showHelp
+
+	renderMutex.Lock()
+	defer renderMutex.Unlock()
+
 	if showHelp {
 		newGrid := ui.NewGrid()
 		newGrid.Set(
@@ -234,7 +238,6 @@ func toggleHelpMenu() {
 	} else {
 		applyLayout(currentConfig.DefaultLayout)
 	}
-	renderMutex.Lock()
 	ui.Clear()
 	width, height := ui.TerminalDimensions()
 	if width > 2 && height > 2 {
@@ -242,7 +245,6 @@ func toggleHelpMenu() {
 	} else {
 		ui.Render(mainBlock)
 	}
-	renderMutex.Unlock()
 }
 
 func togglePartyMode() {
