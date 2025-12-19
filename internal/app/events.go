@@ -131,11 +131,22 @@ func handleModeKeys(key string, done chan struct{}) {
 	case "h", "?":
 		toggleHelpMenu()
 	case "i":
+
 		renderMutex.Lock()
 		if currentConfig.DefaultLayout == LayoutInfo {
-			currentConfig.DefaultLayout = LayoutDefault
-			currentLayoutNum = 0
+			if lastActiveLayout != "" {
+				currentConfig.DefaultLayout = lastActiveLayout
+			} else {
+				currentConfig.DefaultLayout = LayoutDefault
+			}
+			for i, layout := range layoutOrder {
+				if layout == currentConfig.DefaultLayout {
+					currentLayoutNum = i
+					break
+				}
+			}
 		} else {
+			lastActiveLayout = currentConfig.DefaultLayout
 			currentConfig.DefaultLayout = LayoutInfo
 			for i, layout := range layoutOrder {
 				if layout == LayoutInfo {
