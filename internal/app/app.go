@@ -607,12 +607,12 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	// Network metrics are in Bytes/sec
 	netOut := formatBytes(netdiskMetrics.OutBytesPerSec, networkUnit)
 	netIn := formatBytes(netdiskMetrics.InBytesPerSec, networkUnit)
-	sb.WriteString(fmt.Sprintf("Net: ↑ %s/s ↓ %s/s\n", netOut, netIn))
+	fmt.Fprintf(&sb, "Net: ↑ %s/s ↓ %s/s\n", netOut, netIn)
 
 	// Disk metrics are in KB/s, convert to Bytes for formatBytes
 	diskRead := formatBytes(netdiskMetrics.ReadKBytesPerSec*1024, diskUnit)
 	diskWrite := formatBytes(netdiskMetrics.WriteKBytesPerSec*1024, diskUnit)
-	sb.WriteString(fmt.Sprintf("I/O: R %s/s W %s/s\n", diskRead, diskWrite))
+	fmt.Fprintf(&sb, "I/O: R %s/s W %s/s\n", diskRead, diskWrite)
 
 	volumes := getVolumes()
 	for i, v := range volumes {
@@ -624,8 +624,7 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 		total := formatBytes(v.Total*1024*1024*1024, diskUnit)
 		avail := formatBytes(v.Available*1024*1024*1024, diskUnit)
 
-		sb.WriteString(fmt.Sprintf("%s: %s/%s (%s free)\n",
-			v.Name, used, total, avail))
+		fmt.Fprintf(&sb, "%s: %s/%s (%s free)\n", v.Name, used, total, avail)
 	}
 	NetworkInfo.Text = strings.TrimSuffix(sb.String(), "\n")
 
