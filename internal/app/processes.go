@@ -17,12 +17,15 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unsafe"
+
+	ui "github.com/metaspartan/gotui/v4"
 )
 
-// Global variables moved from app.go
 var uidCache = make(map[uint32]string)
 var uidCacheMutex sync.RWMutex
 
@@ -54,14 +57,13 @@ func getUsername(uid uint32) string {
 }
 
 type ProcessTimeState struct {
-	Time      uint64 // Total CPU Time (user + system) in nanoseconds
+	Time      uint64
 	Timestamp time.Time
 }
 
 var prevProcessTimes = make(map[int]ProcessTimeState)
 var prevProcessTimesMutex sync.Mutex
 
-// Timebase info for converting mach ticks to ns
 var timebaseInfo C.mach_timebase_info_data_t
 var timebaseOnce sync.Once
 
@@ -69,16 +71,97 @@ func getTimebase() {
 	C.mach_timebase_info(&timebaseInfo)
 }
 
+func processOsProc(kp C.struct_kinfo_proc, now time.Time, prevProcessTimes map[int]ProcessTimeState, totalMem uint64, numer, denom uint64) (ProcessMetrics, int, ProcessTimeState, bool) {
+	pid := int(kp.kp_proc.p_pid)
+	if pid == 0 {
+		return ProcessMetrics{}, 0, ProcessTimeState{}, false
+	}
+
+	comm := C.GoString(&kp.kp_proc.p_comm[0])
+	var pathBuf [C.PROC_PIDPATHINFO_MAXSIZE]C.char
+	if C.proc_pidpath(C.int(pid), unsafe.Pointer(&pathBuf), C.PROC_PIDPATHINFO_MAXSIZE) > 0 {
+		fullPath := C.GoString(&pathBuf[0])
+		comm = filepath.Base(fullPath)
+	}
+
+	rssBytes := int64(0)
+	vszBytes := int64(0)
+	totalTimeNs := uint64(0)
+
+	var taskInfo C.struct_proc_taskinfo
+	ret := C.proc_pidinfo(C.int(pid), C.PROC_PIDTASKINFO, 0, unsafe.Pointer(&taskInfo), C.int(C.sizeof_struct_proc_taskinfo))
+	if ret == C.int(C.sizeof_struct_proc_taskinfo) {
+		rssBytes = int64(taskInfo.pti_resident_size)
+		vszBytes = int64(taskInfo.pti_virtual_size)
+		rawTime := uint64(taskInfo.pti_total_user) + uint64(taskInfo.pti_total_system)
+		totalTimeNs = (rawTime * numer) / denom
+	}
+
+	cpuPercent := 0.0
+	if prevState, ok := prevProcessTimes[pid]; ok {
+		timeDelta := totalTimeNs - prevState.Time
+		wallDelta := now.Sub(prevState.Timestamp).Nanoseconds()
+		if wallDelta > 0 && timeDelta > 0 {
+			cpuPercent = (float64(timeDelta) / float64(wallDelta)) * 100.0
+		}
+	}
+
+	newState := ProcessTimeState{
+		Time:      totalTimeNs,
+		Timestamp: now,
+	}
+
+	memPercent := 0.0
+	if totalMem > 0 {
+		memPercent = (float64(rssBytes) / float64(totalMem)) * 100.0
+	}
+
+	state := ""
+	switch kp.kp_proc.p_stat {
+	case C.SIDL:
+		state = "I"
+	case C.SRUN:
+		state = "R"
+	case C.SSLEEP:
+		state = "S"
+	case C.SSTOP:
+		state = "T"
+	case C.SZOMB:
+		state = "Z"
+	default:
+		state = "?"
+	}
+
+	uid := uint32(kp.kp_eproc.e_ucred.cr_uid)
+	user := getUsername(uid)
+
+	totalSeconds := float64(totalTimeNs) / 1e9
+	timeStr := formatTime(totalSeconds)
+
+	pm := ProcessMetrics{
+		PID:         pid,
+		User:        user,
+		CPU:         cpuPercent,
+		Memory:      memPercent,
+		VSZ:         vszBytes / 1024,
+		RSS:         rssBytes / 1024,
+		Command:     comm,
+		State:       state,
+		Started:     "",
+		Time:        timeStr,
+		LastUpdated: now,
+	}
+	return pm, pid, newState, true
+}
+
 func getProcessList() ([]ProcessMetrics, error) {
 	mib := []C.int{C.CTL_KERN, C.KERN_PROC, C.KERN_PROC_ALL}
 	var size C.size_t
 
-	// Get buffer size
 	if _, err := C.sysctl(&mib[0], 3, nil, &size, nil, 0); err != nil {
 		return nil, fmt.Errorf("sysctl size check failed: %v", err)
 	}
 
-	// Allocate buffer
 	buf := make([]byte, size)
 	if _, err := C.sysctl(&mib[0], 3, unsafe.Pointer(&buf[0]), &size, nil, 0); err != nil {
 		return nil, fmt.Errorf("sysctl fetch failed: %v", err)
@@ -90,17 +173,11 @@ func getProcessList() ([]ProcessMetrics, error) {
 	var processes []ProcessMetrics
 	now := time.Now()
 
-	// Capture previous times for delta calc
 	prevProcessTimesMutex.Lock()
 	defer prevProcessTimesMutex.Unlock()
 
-	// New cache to replace the old one (handling process termination cleanup implicitly)
-	// Efficient way: create Next map.
 	nextProcessTimes := make(map[int]ProcessTimeState)
 
-	// Get Total Memory for % Calculation via sysctl
-	// CTL_HW = 6, HW_MEMSIZE = 24
-	// usage: sysctl([CTL_HW, HW_MEMSIZE])
 	mibMem := []C.int{6, 24}
 	var memSize C.uint64_t
 	memLen := C.size_t(unsafe.Sizeof(memSize))
@@ -109,107 +186,19 @@ func getProcessList() ([]ProcessMetrics, error) {
 		totalMem = uint64(memSize)
 	}
 
-	// Init timebase once
 	timebaseOnce.Do(getTimebase)
 	numer := uint64(timebaseInfo.numer)
 	denom := uint64(timebaseInfo.denom)
 	if denom == 0 {
 		denom = 1
-	} // safety
+	}
 
 	for _, kp := range kprocs {
-		pid := int(kp.kp_proc.p_pid)
-		if pid == 0 {
-			continue
+		pm, pid, ns, ok := processOsProc(kp, now, prevProcessTimes, totalMem, numer, denom)
+		if ok {
+			processes = append(processes, pm)
+			nextProcessTimes[pid] = ns
 		}
-
-		comm := C.GoString(&kp.kp_proc.p_comm[0])
-
-		// Try to get full command name via proc_pidpath
-		var pathBuf [C.PROC_PIDPATHINFO_MAXSIZE]C.char
-		if C.proc_pidpath(C.int(pid), unsafe.Pointer(&pathBuf), C.PROC_PIDPATHINFO_MAXSIZE) > 0 {
-			fullPath := C.GoString(&pathBuf[0])
-			comm = filepath.Base(fullPath)
-		}
-
-		// Get Task Info (Memory & Time) via libproc
-		rssBytes := int64(0)
-		vszBytes := int64(0)
-		totalTimeNs := uint64(0)
-
-		var taskInfo C.struct_proc_taskinfo
-		ret := C.proc_pidinfo(C.int(pid), C.PROC_PIDTASKINFO, 0, unsafe.Pointer(&taskInfo), C.int(C.sizeof_struct_proc_taskinfo))
-		if ret == C.int(C.sizeof_struct_proc_taskinfo) {
-			rssBytes = int64(taskInfo.pti_resident_size)
-			vszBytes = int64(taskInfo.pti_virtual_size)
-
-			// Convert Mach Ticks to Nanoseconds
-			// time_ns = ticks * (numer / denom)
-			rawTime := uint64(taskInfo.pti_total_user) + uint64(taskInfo.pti_total_system)
-			totalTimeNs = (rawTime * numer) / denom
-		}
-
-		// CPU Calculation (Delta)
-		cpuPercent := 0.0
-		if prevState, ok := prevProcessTimes[pid]; ok {
-			timeDelta := totalTimeNs - prevState.Time
-			wallDelta := now.Sub(prevState.Timestamp).Nanoseconds()
-
-			if wallDelta > 0 && timeDelta > 0 { // Avoid divide by zero or negative
-				// cpu = (cpu_delta / wall_delta) * 100
-				cpuPercent = (float64(timeDelta) / float64(wallDelta)) * 100.0
-			}
-		}
-
-		// Update state for next run
-		nextProcessTimes[pid] = ProcessTimeState{
-			Time:      totalTimeNs,
-			Timestamp: now,
-		}
-
-		// Memory Calculation
-		memPercent := 0.0
-		if totalMem > 0 {
-			memPercent = (float64(rssBytes) / float64(totalMem)) * 100.0
-		}
-
-		state := ""
-		switch kp.kp_proc.p_stat {
-		case C.SIDL:
-			state = "I"
-		case C.SRUN:
-			state = "R"
-		case C.SSLEEP:
-			state = "S"
-		case C.SSTOP:
-			state = "T"
-		case C.SZOMB:
-			state = "Z"
-		default:
-			state = "?"
-		}
-
-		uid := uint32(kp.kp_eproc.e_ucred.cr_uid)
-		user := getUsername(uid)
-
-		// Format time string
-		// totalTimeNs is nanoseconds.
-		totalSeconds := float64(totalTimeNs) / 1e9
-		timeStr := formatTime(totalSeconds)
-
-		processes = append(processes, ProcessMetrics{
-			PID:         pid,
-			User:        user,
-			CPU:         cpuPercent,
-			Memory:      memPercent,
-			VSZ:         vszBytes / 1024, // KB
-			RSS:         rssBytes / 1024, // KB
-			Command:     comm,
-			State:       state,
-			Started:     "",
-			Time:        timeStr,
-			LastUpdated: now,
-		})
 	}
 
 	// Swap map
@@ -257,4 +246,272 @@ func GetCPUUsage() ([]CPUUsage, error) {
 		}
 	}
 	return cpuUsage, nil
+}
+
+func getThemeColorName(themeColor ui.Color) string {
+	switch themeColor {
+	case ui.ColorRed:
+		return "red"
+	case ui.ColorGreen:
+		return "green"
+	case ui.ColorYellow:
+		return "yellow"
+	case ui.ColorBlue:
+		return "blue"
+	case ui.ColorMagenta:
+		return "magenta"
+	case ui.ColorSkyBlue:
+		return "skyblue"
+	case ui.ColorGold:
+		return "gold"
+	case ui.ColorSilver:
+		return "silver"
+	case ui.ColorWhite:
+		return "white"
+	case ui.ColorLime:
+		return "lime"
+	case ui.ColorOrange:
+		return "orange"
+	case ui.ColorViolet:
+		return "violet"
+	case ui.ColorPink:
+		return "pink"
+	default:
+		return "white"
+	}
+}
+
+func sortProcesses(processes []ProcessMetrics) {
+	sort.Slice(processes, func(i, j int) bool {
+		var result bool
+
+		switch columns[selectedColumn] {
+		case "PID":
+			result = processes[i].PID < processes[j].PID
+		case "USER":
+			result = strings.ToLower(processes[i].User) < strings.ToLower(processes[j].User)
+		case "VIRT":
+			result = processes[i].VSZ > processes[j].VSZ
+		case "RES":
+			result = processes[i].RSS > processes[j].RSS
+		case "CPU":
+			result = processes[i].CPU > processes[j].CPU
+		case "MEM":
+			result = processes[i].Memory > processes[j].Memory
+		case "TIME":
+			iTime := parseTimeString(processes[i].Time)
+			jTime := parseTimeString(processes[j].Time)
+			result = iTime > jTime
+		case "CMD":
+			result = strings.ToLower(processes[i].Command) < strings.ToLower(processes[j].Command)
+		default:
+			result = processes[i].CPU > processes[j].CPU
+		}
+
+		if sortReverse {
+			return !result
+		}
+		return result
+	})
+}
+
+func calculateMaxWidths(availableWidth int) map[string]int {
+	maxWidths := map[string]int{
+		"PID":  5,
+		"USER": 8,
+		"VIRT": 6,
+		"RES":  6,
+		"CPU":  6,
+		"MEM":  5,
+		"TIME": 8,
+		"CMD":  15,
+	}
+	usedWidth := 0
+	for col, width := range maxWidths {
+		if col != "CMD" {
+			usedWidth += width + 1
+		}
+	}
+
+	cmdWidth := availableWidth - usedWidth
+	if cmdWidth < 5 {
+		cmdWidth = 5
+	}
+	maxWidths["CMD"] = cmdWidth
+	return maxWidths
+}
+
+func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg string) string {
+	header := ""
+	for i, col := range columns {
+		width := maxWidths[col]
+		format := ""
+		switch col {
+		case "PID":
+			format = fmt.Sprintf("%%%ds", width) // Right-align
+		case "USER":
+			format = fmt.Sprintf("%%-%ds", width) // Left-align
+		case "VIRT", "RES":
+			format = fmt.Sprintf("%%%ds", width) // Right-align
+		case "CPU", "MEM":
+			format = fmt.Sprintf("%%%ds", width) // Right-align
+		case "TIME":
+			format = fmt.Sprintf("%%%ds", width) // Right-align
+		case "CMD":
+			format = fmt.Sprintf("%%-%ds", width) // Left-align
+		}
+
+		colText := fmt.Sprintf(format, col)
+		if i == selectedColumn {
+			if sortReverse {
+				header += fmt.Sprintf("[%s↑](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
+			} else {
+				header += fmt.Sprintf("[%s↓](fg:%s,bg:%s)", colText, selectedHeaderFg, themeColorStr)
+			}
+		} else {
+			header += fmt.Sprintf("[%s](fg:%s)", colText, themeColorStr)
+		}
+
+		if i < len(columns)-1 {
+			header += "|"
+		}
+	}
+	return header
+}
+
+func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []string {
+	items := make([]string, len(processes))
+	for i, p := range processes {
+		seconds := parseTimeString(p.Time)
+		timeStr := formatTime(seconds)
+		virtStr := formatMemorySize(p.VSZ)
+		resStr := formatResMemorySize(p.RSS)
+		username := truncateWithEllipsis(p.User, maxWidths["USER"])
+
+		cmdName := p.Command // Already simplified by ps -c
+
+		line := fmt.Sprintf("%*d %-*s %*s %*s %*.1f%% %*.1f%% %*s %-s",
+			maxWidths["PID"], p.PID,
+			maxWidths["USER"], username,
+			maxWidths["VIRT"], virtStr,
+			maxWidths["RES"], resStr,
+			maxWidths["CPU"]-1, p.CPU, // -1 for % symbol
+			maxWidths["MEM"]-1, p.Memory, // -1 for % symbol
+			maxWidths["TIME"], timeStr,
+			truncateWithEllipsis(cmdName, maxWidths["CMD"]),
+		)
+
+		if p.User != currentUser {
+			color := GetProcessTextColor(false)
+			items[i] = fmt.Sprintf("[%s](fg:%s)", line, color)
+		} else {
+			color := GetProcessTextColor(true)
+			items[i] = fmt.Sprintf("[%s](fg:%s)", line, color)
+		}
+	}
+	return items
+}
+
+func updateProcessList() {
+	processes := lastProcesses
+	if processes == nil {
+		return
+	}
+	themeColor := processList.TextStyle.Fg
+	var themeColorStr string
+	if IsLightMode {
+		themeColorStr = "black"
+	} else {
+		themeColorStr = getThemeColorName(themeColor)
+	}
+
+	termWidth, _ := ui.TerminalDimensions()
+	availableWidth := termWidth - 2
+	if availableWidth < 1 {
+		availableWidth = 1
+	}
+
+	maxWidths := calculateMaxWidths(availableWidth)
+
+	selectedHeaderFg := "black"
+	if themeColorStr == "black" {
+		selectedHeaderFg = "white"
+	}
+
+	header := buildHeader(maxWidths, themeColorStr, selectedHeaderFg)
+	sortProcesses(processes)
+	rows := buildProcessRows(processes, maxWidths)
+
+	items := make([]string, len(processes)+1) // +1 for header
+	items[0] = header
+	copy(items[1:], rows)
+
+	if killPending {
+		processList.Title = fmt.Sprintf("CONFIRM KILL PID %d? (y/n)", killPID)
+		processList.TitleStyle = ui.NewStyle(ui.ColorRed, ui.ColorClear, ui.ModifierBold)
+	} else {
+		processList.Title = "Process List (↑/↓ scroll, ←/→ select column, Enter/Space to sort, F9 to kill process)"
+		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode))
+	}
+	processList.Rows = items
+}
+
+func handleKillPending(e ui.Event) {
+	switch e.ID {
+	case "y", "Y":
+		if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
+			stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
+		} else {
+			stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
+		}
+		killPending = false
+		updateProcessList()
+	case "n", "N", "<Escape>":
+		killPending = false
+		updateProcessList()
+	}
+}
+
+func handleNavigation(e ui.Event) {
+	switch e.ID {
+	case "<Up>", "k", "<MouseWheelUp>":
+		if processList.SelectedRow > 0 {
+			processList.SelectedRow--
+		}
+	case "<Down>", "j", "<MouseWheelDown>":
+		if processList.SelectedRow < len(processList.Rows)-1 {
+			processList.SelectedRow++
+		}
+	case "<Left>":
+		if selectedColumn > 0 {
+			selectedColumn--
+			updateProcessList()
+		}
+	case "<Right>":
+		if selectedColumn < len(columns)-1 {
+			selectedColumn++
+			updateProcessList()
+		}
+	case "<Enter>", "<Space>":
+		sortReverse = !sortReverse
+		updateProcessList()
+	case "<F9>":
+		if len(processList.Rows) > 0 && processList.SelectedRow > 0 {
+			processIndex := processList.SelectedRow - 1
+			if processIndex < len(lastProcesses) {
+				pid := lastProcesses[processIndex].PID
+				killPending = true
+				killPID = pid
+				updateProcessList()
+			}
+		}
+	}
+}
+
+func handleProcessListEvents(e ui.Event) {
+	if killPending {
+		handleKillPending(e)
+		return
+	}
+	handleNavigation(e)
 }

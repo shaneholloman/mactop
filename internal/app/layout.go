@@ -1,7 +1,9 @@
 package app
 
 import (
-	ui "github.com/gizak/termui/v3"
+	"fmt"
+
+	ui "github.com/metaspartan/gotui/v4"
 )
 
 const (
@@ -12,11 +14,22 @@ const (
 	LayoutCompact         = "compact"
 	LayoutDashboard       = "dashboard"
 	LayoutGaugesOnly      = "gauges_only"
+	LayoutGPUFocus        = "gpu_focus"
+	LayoutCPUFocus        = "cpu_focus"
+	LayoutSmall           = "small"
+	LayoutInfo            = "info"
 )
 
-var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly}
+var layoutOrder = []string{LayoutDefault, LayoutAlternative, LayoutAlternativeFull, LayoutVertical, LayoutCompact, LayoutDashboard, LayoutGaugesOnly, LayoutGPUFocus, LayoutCPUFocus, LayoutSmall}
 
 func setupGrid() {
+	totalLayouts = len(layoutOrder)
+	for i, layout := range layoutOrder {
+		if layout == currentConfig.DefaultLayout {
+			currentLayoutNum = i
+			break
+		}
+	}
 	applyLayout(currentConfig.DefaultLayout)
 }
 
@@ -30,12 +43,23 @@ func cycleLayout() {
 	}
 	nextIndex := (currentIndex + 1) % len(layoutOrder)
 	currentConfig.DefaultLayout = layoutOrder[nextIndex]
+	currentLayoutNum = nextIndex
+	totalLayouts = len(layoutOrder)
 	applyLayout(currentConfig.DefaultLayout)
 	updateHelpText()
 }
 
 func applyLayout(layoutName string) {
 	termWidth, termHeight := ui.TerminalDimensions()
+	if mainBlock != nil {
+		mainBlock.SetRect(0, 0, termWidth, termHeight)
+		mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum+1, totalLayouts, currentColorName)
+		if termWidth < 93 {
+			mainBlock.TitleBottom = ""
+		} else {
+			mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+		}
+	}
 	grid = ui.NewGrid()
 
 	switch layoutName {
@@ -145,7 +169,56 @@ func applyLayout(layoutName string) {
 				ui.NewCol(1.0/2, sparklineGroup),
 			),
 		)
-	default: // LayoutDefault
+	case LayoutGPUFocus:
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, gpuGauge),
+				ui.NewCol(1.0/2, gpuSparklineGroup),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/4, cpuGauge),
+				ui.NewCol(1.0/4, memoryGauge),
+				ui.NewCol(1.0/4, NetworkInfo),
+				ui.NewCol(1.0/4, modelText),
+			),
+			ui.NewRow(2.0/4,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutCPUFocus:
+		grid.Set(
+			ui.NewRow(1.0/3,
+				ui.NewCol(1.0/3, cpuGauge),
+				ui.NewCol(2.0/3, cpuCoreWidget),
+			),
+			ui.NewRow(1.0/6,
+				ui.NewCol(1.0/4, gpuGauge),
+				ui.NewCol(1.0/4, memoryGauge),
+				ui.NewCol(1.0/4, sparklineGroup),
+				ui.NewCol(1.0/4, PowerChart),
+			),
+			ui.NewRow(3.0/6,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	case LayoutSmall:
+		grid.Set(
+			ui.NewRow(1.0,
+				ui.NewCol(1.0,
+					ui.NewRow(1.0/4, cpuGauge),
+					ui.NewRow(1.0/4, gpuGauge),
+					ui.NewRow(1.0/4, memoryGauge),
+					ui.NewRow(1.0/4, aneGauge),
+				),
+			),
+		)
+	case LayoutInfo:
+		grid.Set(
+			ui.NewRow(1.0,
+				ui.NewCol(1.0, infoParagraph),
+			),
+		)
+	default:
 		grid.Set(
 			ui.NewRow(1.0/4,
 				ui.NewCol(1.0/2, cpuGauge),
@@ -172,5 +245,7 @@ func applyLayout(layoutName string) {
 			),
 		)
 	}
-	grid.SetRect(0, 0, termWidth, termHeight)
+	if termWidth > 2 && termHeight > 2 {
+		grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	}
 }

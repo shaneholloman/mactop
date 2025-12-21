@@ -1,5 +1,5 @@
 // Copyright (c) 2024-2026 Carsen Klock under MIT License
-// mactop is a simple terminal based Apple Silicon power monitor written in Go Lang! github.com/context-labs/mactop
+// mactop is a simple terminal based Apple Silicon power monitor written in Go Lang! github.com/metaspartan/mactop
 package app
 
 import (
@@ -8,113 +8,55 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"sort"
-	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
-	"net/http"
-
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"sync"
 
-	ui "github.com/gizak/termui/v3"
-	w "github.com/gizak/termui/v3/widgets"
-	"github.com/shirou/gopsutil/v4/disk"
-	"github.com/shirou/gopsutil/v4/mem"
-	"github.com/shirou/gopsutil/v4/net"
+	ui "github.com/metaspartan/gotui/v4"
+	w "github.com/metaspartan/gotui/v4/widgets"
 )
 
 var renderMutex sync.Mutex
 
-func startPrometheusServer(port string) {
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(cpuUsage)
-	registry.MustRegister(ecoreUsage)
-	registry.MustRegister(pcoreUsage)
-	registry.MustRegister(gpuUsage)
-	registry.MustRegister(gpuFreqMHz)
-	registry.MustRegister(powerUsage)
-	registry.MustRegister(socTemp)
-	registry.MustRegister(gpuTemp)
-	registry.MustRegister(thermalState)
-	registry.MustRegister(memoryUsage)
-	registry.MustRegister(networkSpeed)
-	registry.MustRegister(diskIOSpeed)
-	registry.MustRegister(diskIOPS)
-
-	handler := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-
-	http.Handle("/metrics", handler)
-	go func() {
-		err := http.ListenAndServe(":"+port, nil)
-		if err != nil {
-			stderrLogger.Printf("Failed to start Prometheus metrics server: %v\n", err)
-		}
-	}()
-}
-
-func GetCPUPercentages() ([]float64, error) {
-	currentTimes, err := GetCPUUsage()
-	if err != nil {
-		return nil, err
-	}
-	if firstRun {
-		lastCPUTimes = currentTimes
-		firstRun = false
-		return make([]float64, len(currentTimes)), nil
-	}
-	percentages := make([]float64, len(currentTimes))
-	for i := range currentTimes {
-		totalDelta := (currentTimes[i].User - lastCPUTimes[i].User) +
-			(currentTimes[i].System - lastCPUTimes[i].System) +
-			(currentTimes[i].Idle - lastCPUTimes[i].Idle) +
-			(currentTimes[i].Nice - lastCPUTimes[i].Nice)
-
-		activeDelta := (currentTimes[i].User - lastCPUTimes[i].User) +
-			(currentTimes[i].System - lastCPUTimes[i].System) +
-			(currentTimes[i].Nice - lastCPUTimes[i].Nice)
-
-		if totalDelta > 0 {
-			percentages[i] = (activeDelta / totalDelta) * 100.0
-		}
-		if percentages[i] < 0 {
-			percentages[i] = 0
-		} else if percentages[i] > 100 {
-			percentages[i] = 100
-		}
-	}
-	lastCPUTimes = currentTimes
-	return percentages, nil
-}
-
 func setupUI() {
 	appleSiliconModel := getSOCInfo()
-	modelText, helpText = w.NewParagraph(), w.NewParagraph()
+	modelText, helpText, infoParagraph = w.NewParagraph(), w.NewParagraph(), w.NewParagraph()
 	modelText.Title = "Apple Silicon"
 	helpText.Title = "mactop help menu"
+	infoParagraph.Text = "Loading..."
 	modelName := appleSiliconModel.Name
 	if modelName == "" {
 		modelName = "Unknown Model"
 	}
+
+	cachedHostname, _ = os.Hostname()
+	cachedCurrentUser = os.Getenv("USER")
+	cachedShell = os.Getenv("SHELL")
+
+	kv, _ := exec.Command("uname", "-r").Output()
+	cachedKernelVersion = strings.TrimSpace(string(kv))
+
+	ov, _ := exec.Command("sw_vers", "-productVersion").Output()
+	cachedOSVersion = strings.TrimSpace(string(ov))
+
+	cachedModelName = modelName
+	cachedSystemInfo = appleSiliconModel
 	eCoreCount := appleSiliconModel.ECoreCount
 	pCoreCount := appleSiliconModel.PCoreCount
 	gpuCoreCount := appleSiliconModel.GPUCoreCount
 	updateModelText()
 	updateHelpText()
 	stderrLogger.Printf("Model: %s\nE-Core Count: %d\nP-Core Count: %d\nGPU Core Count: %d", modelName, eCoreCount, pCoreCount, gpuCoreCount)
-	stderrLogger.Printf("Model: %s\nE-Core Count: %d\nP-Core Count: %d\nGPU Core Count: %d", modelName, eCoreCount, pCoreCount, gpuCoreCount)
 
 	processList = w.NewList()
 	processList.Title = "Process List"
 	processList.TextStyle = ui.NewStyle(ui.ColorGreen)
 	processList.WrapText = false
-	processList.SelectedRowStyle = ui.NewStyle(ui.ColorBlack, ui.ColorGreen)
+	processList.SelectedStyle = ui.NewStyle(ui.ColorBlack, ui.ColorGreen)
 	processList.Rows = []string{}
 	processList.SelectedRow = 0
 
@@ -132,6 +74,16 @@ func setupUI() {
 
 	PowerChart, NetworkInfo = w.NewParagraph(), w.NewParagraph()
 	PowerChart.Title, NetworkInfo.Title = "Power Usage", "Network & Disk"
+
+	mainBlock = ui.NewBlock()
+	mainBlock.BorderRounded = true
+	mainBlock.Title = " mactop "
+	mainBlock.TitleRight = " " + version + " "
+	mainBlock.TitleAlignment = ui.AlignLeft
+	mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum, totalLayouts, currentColorName)
+	mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+	mainBlock.TitleBottomAlignment = ui.AlignCenter
+	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
 	termWidth, _ := ui.TerminalDimensions()
 	numPoints := termWidth / 2
@@ -156,12 +108,12 @@ func setupUI() {
 	cpuCoreWidget = NewCPUCoreWidget(appleSiliconModel)
 	eCoreCount = appleSiliconModel.ECoreCount
 	pCoreCount = appleSiliconModel.PCoreCount
-	cpuCoreWidget.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP)",
+	cpuCoreWidget.Title = fmt.Sprintf("%d Cores (%dE/%dP)",
 		eCoreCount+pCoreCount,
 		eCoreCount,
 		pCoreCount,
 	)
-	cpuGauge.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP)",
+	cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP)",
 		eCoreCount+pCoreCount,
 		eCoreCount,
 		pCoreCount,
@@ -192,6 +144,34 @@ func updateModelText() {
 	)
 }
 
+func updateIntervalText() {
+	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
+}
+
+func updateInfoUI() {
+	if currentConfig.DefaultLayout != LayoutInfo {
+		return
+	}
+
+	infoParagraph.Text = buildInfoText()
+	infoParagraph.BorderRounded = true
+
+	themeColor := "green"
+	if currentConfig.Theme != "" {
+		themeColor = currentConfig.Theme
+	}
+	if IsLightMode && themeColor == "white" {
+		themeColor = "black"
+	}
+	tc := GetThemeColor(themeColor)
+
+	infoParagraph.BorderStyle.Fg = tc
+	infoParagraph.TitleStyle.Fg = tc
+
+	mainBlock.BorderStyle.Fg = tc
+	mainBlock.TitleStyle.Fg = tc
+}
+
 func updateHelpText() {
 	prometheusStatus := "Disabled"
 	if prometheusPort != "" {
@@ -199,7 +179,7 @@ func updateHelpText() {
 	}
 	helpText.Text = fmt.Sprintf(
 		"mactop is open source monitoring tool for Apple Silicon authored by Carsen Klock in Go Lang!\n\n"+
-			"Repo: github.com/context-labs/mactop\n\n"+
+			"Repo: github.com/metaspartan/mactop\n\n"+
 			"Prometheus Metrics: %s\n\n"+
 			"Controls:\n"+
 			"- r: Refresh the UI data manually\n"+
@@ -220,7 +200,7 @@ func updateHelpText() {
 			"--unit-network: Network unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
-			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'cyan', 'magenta', 'yellow', and 'white'.\n\n"+
+			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.\n\n"+
 			"Version: %s\n\n"+
 			"Current Settings:\n"+
 			"Layout: %s\n"+
@@ -237,6 +217,10 @@ func updateHelpText() {
 func toggleHelpMenu() {
 	updateHelpText()
 	showHelp = !showHelp
+
+	renderMutex.Lock()
+	defer renderMutex.Unlock()
+
 	if showHelp {
 		newGrid := ui.NewGrid()
 		newGrid.Set(
@@ -254,10 +238,13 @@ func toggleHelpMenu() {
 	} else {
 		applyLayout(currentConfig.DefaultLayout)
 	}
-	renderMutex.Lock()
 	ui.Clear()
-	ui.Render(grid)
-	renderMutex.Unlock()
+	width, height := ui.TerminalDimensions()
+	if width > 2 && height > 2 {
+		ui.Render(mainBlock, grid)
+	} else {
+		ui.Render(mainBlock)
+	}
 }
 
 func togglePartyMode() {
@@ -272,8 +259,14 @@ func togglePartyMode() {
 				}
 				cycleTheme()
 				renderMutex.Lock()
+				updateProcessList()
+				width, height := ui.TerminalDimensions()
 				ui.Clear()
-				ui.Render(grid)
+				if width > 2 && height > 2 {
+					ui.Render(mainBlock, grid)
+				} else {
+					ui.Render(mainBlock)
+				}
 				renderMutex.Unlock()
 			}
 		}()
@@ -282,379 +275,19 @@ func togglePartyMode() {
 	}
 }
 
-func StderrToLogfile(logfile *os.File) {
-	syscall.Dup2(int(logfile.Fd()), 2)
-}
-
-func parseTimeString(timeStr string) float64 {
-	var hours, minutes int
-	var seconds float64
-	if strings.Contains(timeStr, "h") {
-		parts := strings.Split(timeStr, "h")
-		fmt.Sscanf(parts[0], "%d", &hours)
-		fmt.Sscanf(parts[1], "%d:%f", &minutes, &seconds)
-	} else {
-		fmt.Sscanf(timeStr, "%d:%f", &minutes, &seconds)
-	}
-	return float64(hours*3600) + float64(minutes*60) + seconds
-}
-
-func formatTime(seconds float64) string {
-	hours := int(seconds) / 3600
-	minutes := (int(seconds) / 60) % 60
-	secs := int(seconds) % 60
-	centisecs := int((seconds - float64(int(seconds))) * 100)
-
-	if hours > 0 {
-		return fmt.Sprintf("%dh%02d:%02d", hours, minutes, secs)
-	}
-	return fmt.Sprintf("%02d:%02d.%02d", minutes, secs, centisecs)
-}
-
-func formatMemorySize(kb int64) string {
-	const (
-		MB = 1024
-		GB = MB * 1024
-		TB = GB * 1024
-	)
-	switch {
-	case kb >= TB:
-		return fmt.Sprintf("%.1fT", float64(kb)/float64(TB))
-	case kb >= GB:
-		return fmt.Sprintf("%.1fG", float64(kb)/float64(GB))
-	case kb >= MB:
-		return fmt.Sprintf("%dM", kb/MB)
-	default:
-		return fmt.Sprintf("%dK", kb)
-	}
-}
-
-func formatResMemorySize(kb int64) string {
-	const (
-		MB = 1024
-		GB = MB * 1024
-	)
-	switch {
-	case kb >= GB:
-		return fmt.Sprintf("%.1fG", float64(kb)/float64(GB))
-	case kb >= MB:
-		return fmt.Sprintf("%dM", kb/MB)
-	default:
-		return fmt.Sprintf("%dK", kb)
-	}
-}
-
-func truncateWithEllipsis(s string, maxLen int) string {
-	if maxLen <= 3 {
-		return "..."
-	}
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen-3] + "..."
-}
-
-func updateProcessList() {
-	processes := lastProcesses
-	if processes == nil {
-		return
-	}
-	themeColor := processList.TextStyle.Fg
-	themeColorStr := "white" // Default color in case theme color isn't recognized
-	switch themeColor {
-	case ui.ColorRed:
-		themeColorStr = "red"
-	case ui.ColorGreen:
-		themeColorStr = "green"
-	case ui.ColorYellow:
-		themeColorStr = "yellow"
-	case ui.ColorBlue:
-		themeColorStr = "blue"
-	case ui.ColorMagenta:
-		themeColorStr = "magenta"
-	case ui.ColorCyan:
-		themeColorStr = "cyan"
-	case ui.ColorWhite:
-		themeColorStr = "white"
-	}
-	termWidth, _ := ui.TerminalDimensions()
-	minWidth := 40 // Set a minimum width to prevent crashes
-	availableWidth := max(termWidth-2, minWidth)
-	maxWidths := map[string]int{
-		"PID":  5,  // Minimum for PID
-		"USER": 8,  // Fixed maximum width for USER
-		"VIRT": 6,  // For memory format
-		"RES":  6,  // For memory format
-		"CPU":  6,  // For "XX.X%"
-		"MEM":  5,  // For "X.X%"
-		"TIME": 8,  // For time format
-		"CMD":  15, // Minimum for command
-	}
-	usedWidth := 0
-	for col, width := range maxWidths {
-		if col != "CMD" {
-			usedWidth += width + 1 // +1 for separator
-		}
-	}
-	maxWidths["CMD"] = availableWidth - usedWidth
-
-	header := ""
-	for i, col := range columns {
-		width := maxWidths[col]
-		format := ""
-		switch col {
-		case "PID":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "USER":
-			format = fmt.Sprintf("%%-%ds", width) // Left-align
-		case "VIRT", "RES":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "CPU", "MEM":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "TIME":
-			format = fmt.Sprintf("%%%ds", width) // Right-align
-		case "CMD":
-			format = fmt.Sprintf("%%-%ds", width) // Left-align
-		}
-
-		colText := fmt.Sprintf(format, col)
-		if i == selectedColumn {
-			if sortReverse {
-				header += fmt.Sprintf("[%s↑](fg:black,bg:%s)", colText, themeColorStr)
-			} else {
-				header += fmt.Sprintf("[%s↓](fg:black,bg:%s)", colText, themeColorStr)
-			}
-		} else {
-			header += fmt.Sprintf("[%s](fg:%s)", colText, themeColorStr)
-		}
-
-		if i < len(columns)-1 {
-			header += "|"
-		}
-	}
-
-	sort.Slice(processes, func(i, j int) bool {
-		var result bool
-
-		switch columns[selectedColumn] {
-		case "PID":
-			result = processes[i].PID < processes[j].PID
-		case "USER":
-			result = strings.ToLower(processes[i].User) < strings.ToLower(processes[j].User)
-		case "VIRT":
-			result = processes[i].VSZ > processes[j].VSZ
-		case "RES":
-			result = processes[i].RSS > processes[j].RSS
-		case "CPU":
-			result = processes[i].CPU > processes[j].CPU
-		case "MEM":
-			result = processes[i].Memory > processes[j].Memory
-		case "TIME":
-			iTime := parseTimeString(processes[i].Time)
-			jTime := parseTimeString(processes[j].Time)
-			result = iTime > jTime
-		case "CMD":
-			result = strings.ToLower(processes[i].Command) < strings.ToLower(processes[j].Command)
-		default:
-			result = processes[i].CPU > processes[j].CPU
-		}
-
-		if sortReverse {
-			return !result
-		}
-		return result
-	})
-
-	items := make([]string, len(processes)+1) // +1 for header
-	items[0] = header
-
-	for i, p := range processes {
-		seconds := parseTimeString(p.Time)
-		timeStr := formatTime(seconds)
-		virtStr := formatMemorySize(p.VSZ)
-		resStr := formatResMemorySize(p.RSS)
-		username := truncateWithEllipsis(p.User, maxWidths["USER"])
-
-		cmdName := p.Command // Already simplified by ps -c
-
-		line := fmt.Sprintf("%*d %-*s %*s %*s %*.1f%% %*.1f%% %*s %-s",
-			maxWidths["PID"], p.PID,
-			maxWidths["USER"], username,
-			maxWidths["VIRT"], virtStr,
-			maxWidths["RES"], resStr,
-			maxWidths["CPU"]-1, p.CPU, // -1 for % symbol
-			maxWidths["MEM"]-1, p.Memory, // -1 for % symbol
-			maxWidths["TIME"], timeStr,
-			truncateWithEllipsis(cmdName, maxWidths["CMD"]),
-		)
-
-		if p.User != currentUser {
-			color := GetProcessTextColor(false)
-			items[i+1] = fmt.Sprintf("[%s](fg:%s)", line, color)
-		} else {
-			color := GetProcessTextColor(true)
-			items[i+1] = fmt.Sprintf("[%s](fg:%s)", line, color)
-		}
-	}
-
-	if killPending {
-		processList.Title = fmt.Sprintf("CONFIRM KILL PID %d? (y/n)", killPID)
-		processList.TitleStyle = ui.NewStyle(ui.ColorRed, ui.ColorClear, ui.ModifierBold)
-	} else {
-		processList.Title = "Process List (↑/↓ scroll, ←/→ select column, Enter/Space to sort, F9 to kill process)"
-		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode))
-	}
-	processList.Rows = items
-}
-
-func handleProcessListEvents(e ui.Event) {
-	if killPending {
-		switch e.ID {
-		case "y", "Y":
-			if err := syscall.Kill(killPID, syscall.SIGTERM); err == nil {
-				stderrLogger.Printf("Sent SIGTERM to PID %d\n", killPID)
-			} else {
-				stderrLogger.Printf("Failed to kill PID %d: %v\n", killPID, err)
-			}
-			killPending = false
-			updateProcessList()
-		case "n", "N", "<Escape>":
-			killPending = false
-			updateProcessList()
-		}
-		return
-	}
-
-	switch e.ID {
-	case "<Up>", "k", "<MouseWheelUp>":
-		if processList.SelectedRow > 0 {
-			processList.SelectedRow--
-		}
-	case "<Down>", "j", "<MouseWheelDown>":
-		if processList.SelectedRow < len(processList.Rows)-1 {
-			processList.SelectedRow++
-		}
-	case "<Left>":
-		if selectedColumn > 0 {
-			selectedColumn--
-			updateProcessList()
-		}
-	case "<Right>":
-		if selectedColumn < len(columns)-1 {
-			selectedColumn++
-			updateProcessList()
-		}
-	case "<Enter>", "<Space>":
-		sortReverse = !sortReverse
-		updateProcessList()
-	case "<F9>":
-		if len(processList.Rows) > 0 && processList.SelectedRow > 0 {
-			processIndex := processList.SelectedRow - 1
-			if processIndex < len(lastProcesses) {
-				pid := lastProcesses[processIndex].PID
-				killPending = true
-				killPID = pid
-				updateProcessList()
-			}
-		}
-	case "c": // Cycle colors
-		cycleTheme()
-		saveConfig()
-		updateProcessList()
-	}
-}
-
 func renderUI() {
 	renderMutex.Lock()
 	defer renderMutex.Unlock()
-	ui.Render(grid)
+	w, h := ui.TerminalDimensions()
+	if w > 2 && h > 2 {
+		ui.Render(mainBlock, grid)
+	} else {
+		ui.Render(mainBlock)
+	}
 }
 
 func Run() {
-	var (
-		colorName             string
-		interval              int
-		err                   error
-		setColor, setInterval bool
-	)
-	for i := 1; i < len(os.Args); i++ {
-		switch os.Args[i] {
-		case "--help", "-h":
-			fmt.Print(`Usage: mactop [options]
-
-Options:
-  -h, --help            Show this help message
-  -v, --version         Show the version of mactop
-  -i, --interval <ms>   Set the update interval in milliseconds (default: 1000)
-  -c, --color <color>   Set the UI color (green, red, blue, cyan, magenta, yellow, white)
-  -p, --prometheus <port> Run Prometheus metrics server on specified port (e.g. :9090)
-      --headless        Run in headless mode (no TUI, output JSON to stdout)
-      --count <n>       Number of samples to collect in headless mode (0 = infinite)
-      --unit-network <unit> Network unit: auto, byte, kb, mb, gb (default: auto)
-      --unit-disk <unit>    Disk unit: auto, byte, kb, mb, gb (default: auto)
-      --unit-temp <unit>    Temperature unit: celsius, fahrenheit (default: celsius)
-
-
-For more information, see https://github.com/context-labs/mactop written by Carsen Klock.
-`)
-			os.Exit(0)
-		case "--version", "-v":
-			fmt.Println("mactop version:", version)
-			os.Exit(0)
-		case "--test", "-t":
-			if i+1 < len(os.Args) {
-				testInput := os.Args[i+1]
-				fmt.Printf("Test input received: %s\n", testInput)
-				os.Exit(0)
-			}
-		case "--testapp", "-a":
-			fmt.Println("Testing IOReport power metrics...")
-			initSocMetrics()
-			for i := 0; i < 3; i++ {
-				m := sampleSocMetrics(500)
-				thermalStr, _ := getThermalStateString()
-				fmt.Printf("Sample %d:\n", i+1)
-				fmt.Printf("  SoC Temp: %.1f°C\n", m.SocTemp)
-				fmt.Printf("  CPU: %.2fW | GPU: %.2fW (%d MHz, %.0f%% active)\n",
-					m.CPUPower, m.GPUPower, m.GPUFreqMHz, m.GPUActive)
-				fmt.Printf("  ANE: %.2fW | DRAM: %.2fW | GPU SRAM: %.2fW | Total: %.2fW | %s\n",
-					m.ANEPower, m.DRAMPower, m.GPUSRAMPower, m.TotalPower, thermalStr)
-				fmt.Println()
-			}
-			cleanupSocMetrics()
-			os.Exit(0)
-		case "--color", "-c":
-			if i+1 < len(os.Args) {
-				colorName = strings.ToLower(os.Args[i+1])
-				setColor = true
-				i++
-			} else {
-				fmt.Println("Error: --color flag requires a color value")
-				os.Exit(1)
-			}
-		case "--prometheus", "-p":
-			if i+1 < len(os.Args) {
-				prometheusPort = os.Args[i+1]
-				i++
-			} else {
-				fmt.Println("Error: --prometheus flag requires a port number")
-				os.Exit(1)
-			}
-		case "--interval", "-i":
-			if i+1 < len(os.Args) {
-				interval, err = strconv.Atoi(os.Args[i+1])
-				if err != nil {
-					fmt.Println("Invalid interval:", err)
-					os.Exit(1)
-				}
-				setInterval = true
-				i++
-			} else {
-				fmt.Println("Error: --interval flag requires an interval value")
-				os.Exit(1)
-			}
-		}
-	}
+	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
 	logfile, err := setupLogfile()
 	if err != nil {
@@ -666,7 +299,9 @@ For more information, see https://github.com/context-labs/mactop written by Cars
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
-	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'cyan', 'magenta', 'yellow', and 'white'.")
+	flag.Bool("d", false, "Dump all available IOReport channels and exit")
+	flag.Bool("dump-ioreport", false, "Dump all available IOReport channels and exit")
+	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
@@ -684,7 +319,6 @@ For more information, see https://github.com/context-labs/mactop written by Cars
 
 	IsLightMode = detectLightMode()
 
-	// TUI Mode
 	if err := ui.Init(); err != nil {
 		stderrLogger.Fatalf("failed to initialize termui: %v", err)
 	}
@@ -712,16 +346,21 @@ For more information, see https://github.com/context-labs/mactop written by Cars
 	}
 	if setInterval {
 		updateInterval = interval
+		updateIntervalText()
 	}
+	currentColorName = currentConfig.Theme
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
-	grid.SetRect(0, 0, termWidth, termHeight)
+	mainBlock.SetRect(0, 0, termWidth, termHeight)
+	if termWidth < 93 {
+		mainBlock.TitleBottom = ""
+	} else {
+		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+	}
+	if termWidth > 2 && termHeight > 2 {
+		grid.SetRect(1, 1, termWidth-1, termHeight-1)
+	}
 	renderUI()
-
-	cpuMetricsChan := make(chan CPUMetrics, 1)
-	gpuMetricsChan := make(chan GPUMetrics, 1)
-	netdiskMetricsChan := make(chan NetDiskMetrics, 1)
-	processMetricsChan := make(chan []ProcessMetrics, 1)
 
 	initialSocMetrics := sampleSocMetrics(100)
 	_, throttled := getThermalStateString()
@@ -752,7 +391,6 @@ For more information, see https://github.com/context-labs/mactop written by Cars
 		Temp:          initialSocMetrics.GPUTemp,
 	}
 
-	// Send initial data to channels (buffered, so won't block)
 	cpuMetricsChan <- cpuMetrics
 	gpuMetricsChan <- gpuMetrics
 
@@ -767,138 +405,19 @@ For more information, see https://github.com/context-labs/mactop written by Cars
 	go collectNetDiskMetrics(done, netdiskMetricsChan)
 
 	uiEvents := ui.PollEvents()
-	ticker := time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
+	ticker = time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
 
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				select {
-				case cpuMetrics := <-cpuMetricsChan:
-					renderMutex.Lock()
-					updateCPUUI(cpuMetrics)
-					updateTotalPowerChart(cpuMetrics.PackageW)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case gpuMetrics := <-gpuMetricsChan:
-					renderMutex.Lock()
-					updateGPUUI(gpuMetrics)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case netdiskMetrics := <-netdiskMetricsChan:
-					renderMutex.Lock()
-					updateNetDiskUI(netdiskMetrics)
-					renderMutex.Unlock()
-				default:
-				}
-				select {
-				case processes := <-processMetricsChan:
-					if processList.SelectedRow == 0 {
-						lastProcesses = processes
-						renderMutex.Lock()
-						updateProcessList()
-						renderMutex.Unlock()
-					}
-				default:
-				}
-				renderUI()
-
-			}
-		}
-	}()
+	startBackgroundUpdates(done)
 	renderUI()
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
 	defer func() {
 		if partyTicker != nil {
 			partyTicker.Stop()
 		}
 	}()
 	lastUpdateTime = time.Now()
-	// Keyboard input handling via termui
-	for e := range uiEvents {
-		switch e.Type {
-		case ui.ResizeEvent:
-			payload := e.Payload.(ui.Resize)
-			termWidth, termHeight := payload.Width, payload.Height
-			renderMutex.Lock()
-			grid.SetRect(0, 0, termWidth, termHeight)
-			ui.Clear()
-			ui.Render(grid)
-			renderMutex.Unlock()
 
-		case ui.KeyboardEvent:
-			key := e.ID
-			fakeEvent := ui.Event{Type: ui.KeyboardEvent, ID: key}
-			renderMutex.Lock()
-			handleProcessListEvents(fakeEvent)
-			ui.Render(grid)
-			renderMutex.Unlock()
-
-			switch key {
-			case "q", "<C-c>":
-				close(done)
-				ui.Close()
-				os.Exit(0)
-				return
-			case "r":
-				termWidth, termHeight := ui.TerminalDimensions()
-				renderMutex.Lock()
-				grid.SetRect(0, 0, termWidth, termHeight)
-				ui.Clear()
-				ui.Render(grid)
-				renderMutex.Unlock()
-			case "p":
-				togglePartyMode()
-			case "c":
-				renderMutex.Lock()
-				termWidth, termHeight := ui.TerminalDimensions()
-				grid.SetRect(0, 0, termWidth, termHeight)
-				renderMutex.Unlock()
-				cycleTheme()
-				saveConfig()
-				renderMutex.Lock()
-				ui.Clear()
-				ui.Render(grid)
-				renderMutex.Unlock()
-			case "l":
-				cycleLayout()
-				saveConfig()
-				renderMutex.Lock()
-				ui.Clear()
-				ui.Render(grid)
-				renderMutex.Unlock()
-			case "h", "?":
-				toggleHelpMenu()
-			case "-", "_":
-				updateInterval -= 100
-				if updateInterval < 100 {
-					updateInterval = 100
-				}
-				updateHelpText()
-				updateModelText()
-			case "+", "=":
-				updateInterval += 100
-				if updateInterval > 5000 {
-					updateInterval = 5000
-				}
-				updateHelpText()
-				updateModelText()
-			}
-
-		case ui.MouseEvent:
-			renderMutex.Lock()
-			handleProcessListEvents(e)
-			ui.Render(grid)
-			renderMutex.Unlock()
-		}
-	}
+	handleEvents(done, uiEvents)
 }
 
 func setupLogfile() (*os.File, error) {
@@ -918,189 +437,6 @@ func setupLogfile() (*os.File, error) {
 	log.SetFlags(log.Ltime | log.Lshortfile)
 	log.SetOutput(logfile)
 	return logfile, nil
-}
-
-func getThermalStateString() (string, bool) {
-	state := getSocThermalState()
-	// NSProcessInfoThermalState: 0=Nominal, 1=Fair, 2=Serious, 3=Critical
-	// powermetrics terminology: Nominal, Moderate, Heavy, Critical (or Trapping)
-	states := []string{"Nominal", "Moderate", "Heavy", "Critical"}
-	if state >= 0 && state < len(states) {
-		return states[state], state > 0
-	}
-	return "Unknown", false
-}
-
-func getNetDiskMetrics() NetDiskMetrics {
-	var metrics NetDiskMetrics
-
-	netDiskMutex.Lock()
-	defer netDiskMutex.Unlock()
-
-	now := time.Now()
-	elapsed := now.Sub(lastNetDiskTime).Seconds()
-	if elapsed <= 0 {
-		elapsed = 1
-	}
-
-	netStats, err := net.IOCounters(false)
-	if err == nil && len(netStats) > 0 {
-		current := netStats[0]
-		if lastNetDiskTime.IsZero() {
-			lastNetStats = current
-		} else {
-			metrics.InBytesPerSec = float64(current.BytesRecv-lastNetStats.BytesRecv) / elapsed
-			metrics.OutBytesPerSec = float64(current.BytesSent-lastNetStats.BytesSent) / elapsed
-			metrics.InPacketsPerSec = float64(current.PacketsRecv-lastNetStats.PacketsRecv) / elapsed
-			metrics.OutPacketsPerSec = float64(current.PacketsSent-lastNetStats.PacketsSent) / elapsed
-		}
-		lastNetStats = current
-	}
-
-	diskStats, err := disk.IOCounters()
-	if err == nil {
-		var totalReadBytes, totalWriteBytes, totalReadOps, totalWriteOps uint64
-		for _, d := range diskStats {
-			totalReadBytes += d.ReadBytes
-			totalWriteBytes += d.WriteBytes
-			totalReadOps += d.ReadCount
-			totalWriteOps += d.WriteCount
-		}
-		if !lastNetDiskTime.IsZero() {
-			metrics.ReadKBytesPerSec = float64(totalReadBytes-lastDiskStats.ReadBytes) / elapsed / 1024
-			metrics.WriteKBytesPerSec = float64(totalWriteBytes-lastDiskStats.WriteBytes) / elapsed / 1024
-			metrics.ReadOpsPerSec = float64(totalReadOps-lastDiskStats.ReadCount) / elapsed
-			metrics.WriteOpsPerSec = float64(totalWriteOps-lastDiskStats.WriteCount) / elapsed
-		}
-		lastDiskStats = disk.IOCountersStat{
-			ReadBytes:  totalReadBytes,
-			WriteBytes: totalWriteBytes,
-			ReadCount:  totalReadOps,
-			WriteCount: totalWriteOps,
-		}
-	}
-
-	lastNetDiskTime = now
-	return metrics
-}
-
-func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMetrics) {
-	time.Sleep(time.Duration(updateInterval) * time.Millisecond)
-
-	for {
-		start := time.Now()
-
-		select {
-		case <-done:
-			return
-		default:
-			netdiskMetrics := getNetDiskMetrics()
-			select {
-			case netdiskMetricsChan <- netdiskMetrics:
-			default:
-			}
-		}
-
-		elapsed := time.Since(start)
-		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
-		if sleepTime > 0 {
-			select {
-			case <-time.After(sleepTime):
-			case <-interruptChan:
-			}
-		}
-	}
-}
-
-func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics) {
-	time.Sleep(time.Duration(updateInterval) * time.Millisecond)
-
-	for {
-		start := time.Now()
-
-		sampleDuration := updateInterval
-		if sampleDuration < 100 {
-			sampleDuration = 100
-		}
-
-		m := sampleSocMetrics(sampleDuration / 2)
-
-		_, throttled := getThermalStateString()
-
-		componentSum := m.TotalPower
-		totalPower := componentSum
-		systemResidual := 0.0
-
-		if m.SystemPower > componentSum {
-			totalPower = m.SystemPower
-			systemResidual = m.SystemPower - componentSum
-		}
-
-		cpuMetrics := CPUMetrics{
-			CPUW:      m.CPUPower,
-			GPUW:      m.GPUPower,
-			ANEW:      m.ANEPower,
-			DRAMW:     m.DRAMPower,
-			GPUSRAMW:  m.GPUSRAMPower,
-			SystemW:   systemResidual,
-			PackageW:  totalPower,
-			Throttled: throttled,
-			CPUTemp:   float64(m.CPUTemp),
-			GPUTemp:   float64(m.GPUTemp),
-		}
-
-		gpuMetrics := GPUMetrics{
-			FreqMHz:       int(m.GPUFreqMHz),
-			ActivePercent: m.GPUActive,
-			Power:         m.GPUPower + m.GPUSRAMPower,
-			Temp:          m.GPUTemp,
-		}
-
-		select {
-		case <-done:
-			return
-		case cpumetricsChan <- cpuMetrics:
-		default:
-		}
-		select {
-		case gpumetricsChan <- gpuMetrics:
-		default:
-		}
-
-		elapsed := time.Since(start)
-		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
-		if sleepTime > 0 {
-			select {
-			case <-time.After(sleepTime):
-			case <-interruptChan:
-			}
-		}
-	}
-}
-
-func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics) {
-	time.Sleep(time.Duration(updateInterval) * time.Millisecond)
-
-	for {
-		start := time.Now()
-
-		select {
-		case <-done:
-			return
-		default:
-			if processes, err := getProcessList(); err == nil {
-				processMetricsChan <- processes
-			} else {
-				stderrLogger.Printf("Error getting process list: %v\n", err)
-			}
-		}
-
-		elapsed := time.Since(start)
-		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
-		if sleepTime > 0 {
-			time.Sleep(sleepTime)
-		}
-	}
 }
 
 func updateTotalPowerChart(watts float64) {
@@ -1148,14 +484,14 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	}
 	totalUsage /= float64(len(coreUsages))
 	cpuGauge.Percent = int(totalUsage)
-	cpuGauge.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP) %.2f%% (%s)",
+	cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
 		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
 		cpuCoreWidget.eCoreCount,
 		cpuCoreWidget.pCoreCount,
 		totalUsage,
 		formatTemp(cpuMetrics.CPUTemp),
 	)
-	cpuCoreWidget.Title = fmt.Sprintf("mactop - %d Cores (%dE/%dP) %.2f%% (%s)",
+	cpuCoreWidget.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
 		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
 		cpuCoreWidget.eCoreCount,
 		cpuCoreWidget.pCoreCount,
@@ -1199,9 +535,9 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	thermalStateVal, _ := getThermalStateString()
 	thermalStateNum := 0
 	switch thermalStateVal {
-	case "Moderate":
+	case "Fair":
 		thermalStateNum = 1
-	case "Heavy":
+	case "Serious":
 		thermalStateNum = 2
 	case "Critical":
 		thermalStateNum = 3
@@ -1265,75 +601,18 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 	gpuFreqMHz.Set(float64(gpuMetrics.FreqMHz))
 }
 
-type VolumeInfo struct {
-	Name      string
-	Total     float64
-	Used      float64
-	Available float64
-	UsedPct   float64
-}
-
-func getVolumes() []VolumeInfo {
-	var volumes []VolumeInfo
-	partitions, err := disk.Partitions(false)
-	if err != nil {
-		return volumes
-	}
-
-	seen := make(map[string]bool)
-	for _, p := range partitions {
-		if seen[p.Device] {
-			continue
-		}
-		if !strings.HasPrefix(p.Mountpoint, "/Volumes/") && p.Mountpoint != "/" {
-			continue
-		}
-		if strings.Contains(p.Mountpoint, "/Volumes/Recovery") ||
-			strings.Contains(p.Mountpoint, "/Volumes/Preboot") ||
-			strings.Contains(p.Mountpoint, "/Volumes/VM") ||
-			strings.Contains(p.Mountpoint, "/Volumes/Update") ||
-			strings.Contains(p.Mountpoint, "/Volumes/xarts") ||
-			strings.Contains(p.Mountpoint, "/Volumes/iSCPreboot") ||
-			strings.Contains(p.Mountpoint, "/Volumes/Hardware") {
-			continue
-		}
-		usage, err := disk.Usage(p.Mountpoint)
-		if err != nil || usage.Total == 0 {
-			continue
-		}
-		seen[p.Device] = true
-		var name string
-		if p.Mountpoint == "/" {
-			name = "Mac HD"
-		} else {
-			name = strings.TrimPrefix(p.Mountpoint, "/Volumes/")
-		}
-		if len(name) > 12 {
-			name = name[:12]
-		}
-		volumes = append(volumes, VolumeInfo{
-			Name:      name,
-			Total:     float64(usage.Total) / 1e9,
-			Used:      float64(usage.Used) / 1e9,
-			Available: float64(usage.Free) / 1e9,
-			UsedPct:   usage.UsedPercent,
-		})
-	}
-	return volumes
-}
-
 func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 	var sb strings.Builder
 
 	// Network metrics are in Bytes/sec
 	netOut := formatBytes(netdiskMetrics.OutBytesPerSec, networkUnit)
 	netIn := formatBytes(netdiskMetrics.InBytesPerSec, networkUnit)
-	sb.WriteString(fmt.Sprintf("Net: ↑ %s/s ↓ %s/s\n", netOut, netIn))
+	fmt.Fprintf(&sb, "Net: ↑ %s/s ↓ %s/s\n", netOut, netIn)
 
 	// Disk metrics are in KB/s, convert to Bytes for formatBytes
 	diskRead := formatBytes(netdiskMetrics.ReadKBytesPerSec*1024, diskUnit)
 	diskWrite := formatBytes(netdiskMetrics.WriteKBytesPerSec*1024, diskUnit)
-	sb.WriteString(fmt.Sprintf("I/O: R %s/s W %s/s\n", diskRead, diskWrite))
+	fmt.Fprintf(&sb, "I/O: R %s/s W %s/s\n", diskRead, diskWrite)
 
 	volumes := getVolumes()
 	for i, v := range volumes {
@@ -1345,179 +624,8 @@ func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {
 		total := formatBytes(v.Total*1024*1024*1024, diskUnit)
 		avail := formatBytes(v.Available*1024*1024*1024, diskUnit)
 
-		sb.WriteString(fmt.Sprintf("%s: %s/%s (%s free)\n",
-			v.Name, used, total, avail))
+		fmt.Fprintf(&sb, "%s: %s/%s (%s free)\n", v.Name, used, total, avail)
 	}
 	NetworkInfo.Text = strings.TrimSuffix(sb.String(), "\n")
 
-	networkSpeed.With(prometheus.Labels{"direction": "upload"}).Set(netdiskMetrics.OutBytesPerSec)
-	networkSpeed.With(prometheus.Labels{"direction": "download"}).Set(netdiskMetrics.InBytesPerSec)
-	diskIOSpeed.With(prometheus.Labels{"operation": "read"}).Set(netdiskMetrics.ReadKBytesPerSec)
-	diskIOSpeed.With(prometheus.Labels{"operation": "write"}).Set(netdiskMetrics.WriteKBytesPerSec)
-	diskIOPS.With(prometheus.Labels{"operation": "read"}).Set(netdiskMetrics.ReadOpsPerSec)
-	diskIOPS.With(prometheus.Labels{"operation": "write"}).Set(netdiskMetrics.WriteOpsPerSec)
-}
-
-func max(nums ...int) int {
-	maxVal := nums[0]
-	for _, num := range nums[1:] {
-		if num > maxVal {
-			maxVal = num
-		}
-	}
-	return maxVal
-}
-
-func getSOCInfo() SystemInfo {
-	cpuInfoDict := getCPUInfo()
-	coreCountsDict := getCoreCounts()
-	var eCoreCounts, pCoreCounts int
-	if val, ok := coreCountsDict["hw.perflevel1.logicalcpu"]; ok {
-		eCoreCounts = val
-	}
-	if val, ok := coreCountsDict["hw.perflevel0.logicalcpu"]; ok {
-		pCoreCounts = val
-	}
-
-	coreCount, _ := strconv.Atoi(cpuInfoDict["machdep.cpu.core_count"])
-	gpuCoreCountStr := getGPUCores()
-	gpuCoreCount, _ := strconv.Atoi(gpuCoreCountStr)
-	if gpuCoreCount == 0 && gpuCoreCountStr != "?" {
-	}
-
-	return SystemInfo{
-		Name:         cpuInfoDict["machdep.cpu.brand_string"],
-		CoreCount:    coreCount,
-		ECoreCount:   eCoreCounts,
-		PCoreCount:   pCoreCounts,
-		GPUCoreCount: gpuCoreCount,
-	}
-}
-
-func getMemoryMetrics() MemoryMetrics {
-	v, _ := mem.VirtualMemory()
-	s, _ := mem.SwapMemory()
-	totalMemory := v.Total
-	usedMemory := v.Used
-	availableMemory := v.Available
-	swapTotal := s.Total
-	swapUsed := s.Used
-	return MemoryMetrics{
-		Total:     totalMemory,
-		Used:      usedMemory,
-		Available: availableMemory,
-		SwapTotal: swapTotal,
-		SwapUsed:  swapUsed,
-	}
-}
-
-func getCPUInfo() map[string]string {
-	out, err := exec.Command("sysctl", "machdep.cpu").Output()
-	if err != nil {
-		stderrLogger.Fatalf("failed to execute getCPUInfo() sysctl command: %v", err)
-	}
-	cpuInfo := string(out)
-	cpuInfoLines := strings.Split(cpuInfo, "\n")
-	dataFields := []string{"machdep.cpu.brand_string", "machdep.cpu.core_count"}
-	cpuInfoDict := make(map[string]string)
-	for _, line := range cpuInfoLines {
-		for _, field := range dataFields {
-			if strings.Contains(line, field) {
-				value := strings.TrimSpace(strings.Split(line, ":")[1])
-				cpuInfoDict[field] = value
-			}
-		}
-	}
-	return cpuInfoDict
-}
-
-func getCoreCounts() map[string]int {
-	cmd := exec.Command("sysctl", "hw.perflevel0.logicalcpu", "hw.perflevel1.logicalcpu")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	out, err := cmd.Output()
-	if err != nil {
-		stderrLogger.Fatalf("failed to execute getCoreCounts() sysctl command: %v", err)
-	}
-	coresInfo := string(out)
-	coresInfoLines := strings.Split(coresInfo, "\n")
-	dataFields := []string{"hw.perflevel0.logicalcpu", "hw.perflevel1.logicalcpu"}
-	coresInfoDict := make(map[string]int)
-	for _, line := range coresInfoLines {
-		for _, field := range dataFields {
-			if strings.Contains(line, field) {
-				value, _ := strconv.Atoi(strings.TrimSpace(strings.Split(line, ":")[1]))
-				coresInfoDict[field] = value
-			}
-		}
-	}
-	return coresInfoDict
-}
-
-func getGPUCores() string {
-	cmd, err := exec.Command("system_profiler", "-detailLevel", "basic", "SPDisplaysDataType").Output()
-	if err != nil {
-		stderrLogger.Fatalf("failed to execute system_profiler command: %v", err)
-	}
-	output := string(cmd)
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Total Number of Cores") {
-			parts := strings.Split(line, ": ")
-			if len(parts) > 1 {
-				cores := strings.TrimSpace(parts[1])
-				return cores
-			}
-			break
-		}
-	}
-	return "?"
-}
-func formatBytes(val float64, unitType string) string {
-	units := []string{"B", "KB", "MB", "GB", "TB"}
-
-	targetUnit := strings.ToLower(unitType)
-	if targetUnit == "" {
-		targetUnit = "auto"
-	}
-
-	value := val
-	suffix := ""
-
-	switch targetUnit {
-	case "byte":
-		suffix = "B"
-	case "kb":
-		value /= 1024
-		suffix = "KB"
-	case "mb":
-		value /= 1024 * 1024
-		suffix = "MB"
-	case "gb":
-		value /= 1024 * 1024 * 1024
-		suffix = "GB"
-	case "auto":
-		i := 0
-		for value >= 1000 && i < len(units)-1 {
-			value /= 1024
-			i++
-		}
-		suffix = units[i]
-	default:
-		i := 0
-		for value >= 1000 && i < len(units)-1 {
-			value /= 1024
-			i++
-		}
-		suffix = units[i]
-	}
-
-	return fmt.Sprintf("%.1f%s", value, suffix)
-}
-
-func formatTemp(celsius float64) string {
-	if strings.ToLower(tempUnit) == "fahrenheit" {
-		f := (celsius * 9 / 5) + 32
-		return fmt.Sprintf("%d°F", int(f))
-	}
-	return fmt.Sprintf("%d°C", int(celsius))
 }

@@ -224,6 +224,116 @@ int initIOReport() {
   return 0;
 }
 
+void debugIOReport() {
+  if (initIOReport() != 0) {
+    printf("Failed to initialize IOReport\n");
+    return;
+  }
+
+  // Subscribe to everything for debugging
+  IOReportSubscriptionRef sub = NULL;
+  CFMutableDictionaryRef allChannels = NULL;
+  CFMutableDictionaryRef subChannels = NULL;
+
+  // Try to get ALL channels first
+  CFDictionaryRef allChans = IOReportCopyChannelsInGroup(NULL, NULL, 0, 0, 0);
+
+  if (allChans == NULL) {
+    printf("Wildcard channel copy failed. Trying specific groups...\n");
+    allChannels = CFDictionaryCreateMutable(kCFAllocatorDefault, 0,
+                                            &kCFTypeDictionaryKeyCallBacks,
+                                            &kCFTypeDictionaryValueCallBacks);
+
+    const char *groups[] = {
+        "Energy Model",           "GPU Stats", "CPU Stats", "ODS",
+        "Performance Statistics", "CLPC",      "PMP",       NULL};
+
+    for (int i = 0; groups[i] != NULL; i++) {
+      CFStringRef groupStr = CFStringCreateWithCString(
+          kCFAllocatorDefault, groups[i], kCFStringEncodingUTF8);
+      CFDictionaryRef groupChans =
+          IOReportCopyChannelsInGroup(groupStr, NULL, 0, 0, 0);
+      if (groupChans != NULL) {
+        printf("Found channels in group: %s\n", groups[i]);
+        IOReportMergeChannels(allChannels, groupChans, NULL);
+        CFRelease(groupChans);
+      } else {
+        printf("No channels in group: %s\n", groups[i]);
+      }
+      CFRelease(groupStr);
+    }
+  } else {
+    allChannels = CFDictionaryCreateMutableCopy(
+        kCFAllocatorDefault, CFDictionaryGetCount(allChans), allChans);
+    CFRelease(allChans);
+  }
+
+  if (CFDictionaryGetCount(allChannels) == 0) {
+    printf("No channels found after all attempts.\n");
+    CFRelease(allChannels);
+    return;
+  }
+
+  sub = IOReportCreateSubscription(NULL, allChannels, &subChannels, 0, NULL);
+  if (sub == NULL) {
+    printf("Failed to create subscription\n");
+    CFRelease(allChannels);
+    return;
+  }
+
+  // Create a sample
+  CFDictionaryRef sample = IOReportCreateSamples(sub, allChannels, NULL);
+  if (sample == NULL) {
+    printf("Failed to create samples\n");
+    CFRelease(allChannels);
+    return;
+  }
+
+  CFArrayRef channels = CFDictionaryGetValue(sample, CFSTR("IOReportChannels"));
+  if (channels != NULL) {
+    CFIndex count = CFArrayGetCount(channels);
+    printf("--- IOReport Channels Dump (%ld channels) ---\n", count);
+    printf("%-20s | %-30s | %-40s | %s\n", "GROUP", "SUBGROUP", "CHANNEL",
+           "UNIT");
+    printf("-------------------------------------------------------------------"
+           "-----------------------------------------------\n");
+
+    for (CFIndex i = 0; i < count; i++) {
+      CFDictionaryRef item =
+          (CFDictionaryRef)CFArrayGetValueAtIndex(channels, i);
+      if (item == NULL)
+        continue;
+
+      CFStringRef groupRef = IOReportChannelGetGroup(item);
+      CFStringRef subGroupRef = IOReportChannelGetSubGroup(item);
+      CFStringRef channelRef = IOReportChannelGetChannelName(item);
+      CFStringRef unitRef = IOReportChannelGetUnitLabel(item);
+
+      char group[64] = {0};
+      char subGroup[64] = {0};
+      char channel[128] = {0};
+      char unit[32] = {0};
+
+      if (groupRef)
+        CFStringGetCString(groupRef, group, sizeof(group),
+                           kCFStringEncodingUTF8);
+      if (subGroupRef)
+        CFStringGetCString(subGroupRef, subGroup, sizeof(subGroup),
+                           kCFStringEncodingUTF8);
+      if (channelRef)
+        CFStringGetCString(channelRef, channel, sizeof(channel),
+                           kCFStringEncodingUTF8);
+      if (unitRef)
+        CFStringGetCString(unitRef, unit, sizeof(unit), kCFStringEncodingUTF8);
+
+      printf("%-20s | %-30s | %-40s | %s\n", group, subGroup, channel, unit);
+    }
+  }
+
+  CFRelease(sample);
+  CFRelease(allChannels);
+}
+
 typedef struct {
   double cpuPower;
   double gpuPower;
