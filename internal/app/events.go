@@ -220,7 +220,7 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	case "-", "_", "+", "=":
 		handleIntervalKeys(key)
 	case "j", "<Down>":
-		// Scroll down in Info layout
+		// Scroll down in Info layout or TB widget in NetworkIO layout
 		if currentConfig.DefaultLayout == LayoutInfo {
 			renderMutex.Lock()
 			infoScrollOffset++
@@ -228,15 +228,29 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 			w, h := ui.TerminalDimensions()
 			drawScreen(w, h)
 			renderMutex.Unlock()
+		} else if currentConfig.DefaultLayout == LayoutNetworkIO {
+			renderMutex.Lock()
+			tbScrollOffset++
+			w, h := ui.TerminalDimensions()
+			drawScreen(w, h)
+			renderMutex.Unlock()
 		}
 	case "k", "<Up>":
-		// Scroll up in Info layout
+		// Scroll up in Info layout or TB widget in NetworkIO layout
 		if currentConfig.DefaultLayout == LayoutInfo {
 			renderMutex.Lock()
 			if infoScrollOffset > 0 {
 				infoScrollOffset--
 			}
 			updateInfoUI()
+			w, h := ui.TerminalDimensions()
+			drawScreen(w, h)
+			renderMutex.Unlock()
+		} else if currentConfig.DefaultLayout == LayoutNetworkIO {
+			renderMutex.Lock()
+			if tbScrollOffset > 0 {
+				tbScrollOffset--
+			}
 			w, h := ui.TerminalDimensions()
 			drawScreen(w, h)
 			renderMutex.Unlock()
@@ -258,6 +272,15 @@ func handleGenericMouseEvent(e ui.Event) {
 		case "<MouseWheelDown>":
 			infoScrollOffset++
 			updateInfoUI()
+		}
+	} else if currentConfig.DefaultLayout == LayoutNetworkIO {
+		switch e.ID {
+		case "<MouseWheelUp>":
+			if tbScrollOffset > 0 {
+				tbScrollOffset--
+			}
+		case "<MouseWheelDown>":
+			tbScrollOffset++
 		}
 	}
 

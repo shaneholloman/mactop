@@ -79,6 +79,18 @@ func applyThemeToSparklines(color ui.Color) {
 		ioSparklineGroup.BorderStyle.Fg = color
 		ioSparklineGroup.TitleStyle.Fg = color
 	}
+	if tbNetSparklineIn != nil {
+		tbNetSparklineIn.LineColor = ui.ColorGreen
+		tbNetSparklineIn.TitleStyle = ui.NewStyle(color)
+	}
+	if tbNetSparklineOut != nil {
+		tbNetSparklineOut.LineColor = ui.ColorMagenta
+		tbNetSparklineOut.TitleStyle = ui.NewStyle(color)
+	}
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.BorderStyle.Fg = color
+		tbNetSparklineGroup.TitleStyle.Fg = color
+	}
 }
 
 func applyThemeToWidgets(color ui.Color, lightMode bool) {

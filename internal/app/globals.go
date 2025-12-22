@@ -23,8 +23,12 @@ var (
 	processList                                                 *w.List
 	sparkline, gpuSparkline, ioSparkline                        *w.Sparkline
 	sparklineGroup, gpuSparklineGroup, ioSparklineGroup         *w.SparklineGroup
+	tbNetSparklineIn, tbNetSparklineOut                         *w.Sparkline
+	tbNetSparklineGroup                                         *w.SparklineGroup
 	cpuCoreWidget                                               *CPUCoreWidget
 	powerValues                                                 = make([]float64, 35)
+	tbNetInValues                                               = make([]float64, 100)
+	tbNetOutValues                                              = make([]float64, 100)
 	lastUpdateTime                                              time.Time
 	stderrLogger                                                = log.New(os.Stderr, "", 0)
 	showHelp, partyMode                                         = false, false
@@ -78,6 +82,7 @@ var (
 	cachedSystemInfo   SystemInfo
 	cachedTBDeviceInfo string
 	infoScrollOffset   int
+	tbScrollOffset     int
 )
 
 var (

@@ -124,6 +124,22 @@ func setupUI() {
 	ioSparklineGroup = w.NewSparklineGroup(ioSparkline)
 	ioSparklineGroup.Title = "IO / Bandwidth History"
 
+	// TB Net sparklines for download/upload
+	tbNetSparklineIn = w.NewSparkline()
+	tbNetSparklineIn.MaxHeight = 100
+	tbNetSparklineIn.Data = tbNetInValues
+	tbNetSparklineIn.LineColor = ui.ColorGreen
+	tbNetSparklineIn.Title = "↓ Download"
+
+	tbNetSparklineOut = w.NewSparkline()
+	tbNetSparklineOut.MaxHeight = 100
+	tbNetSparklineOut.Data = tbNetOutValues
+	tbNetSparklineOut.LineColor = ui.ColorMagenta
+	tbNetSparklineOut.Title = "↑ Upload"
+
+	tbNetSparklineGroup = w.NewSparklineGroup(tbNetSparklineIn, tbNetSparklineOut)
+	tbNetSparklineGroup.Title = "TB Net ↓0/s ↑0/s"
+
 	updateProcessList()
 
 	cpuCoreWidget = NewCPUCoreWidget(appleSiliconModel)
@@ -671,12 +687,83 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	// Set simple title
 	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 
-	// Use cached device info from startup goroutine
+	// Use cached device info and apply scrolling
 	tbDeviceInfo := cachedTBDeviceInfo
 	if tbDeviceInfo == "" {
 		tbDeviceInfo = "Loading..."
 	}
 
+	// Split into lines and apply scroll offset
+	lines := strings.Split(tbDeviceInfo, "\n")
+	visibleLines := 3 // Number of device lines to show
+	totalLines := len(lines)
+
+	// Clamp scroll offset
+	maxScroll := totalLines - visibleLines
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if tbScrollOffset > maxScroll {
+		tbScrollOffset = maxScroll
+	}
+	if tbScrollOffset < 0 {
+		tbScrollOffset = 0
+	}
+
+	// Get visible portion
+	endLine := tbScrollOffset + visibleLines
+	if endLine > totalLines {
+		endLine = totalLines
+	}
+	visibleDeviceInfo := strings.Join(lines[tbScrollOffset:endLine], "\n")
+
+	// Add scroll indicators
+	scrollHint := ""
+	if tbScrollOffset > 0 {
+		scrollHint = "↑ "
+	}
+	if endLine < totalLines {
+		scrollHint += fmt.Sprintf("↓ (%d more)", totalLines-endLine)
+	}
+
 	// Show RDMA status and bandwidth in text, above device list
-	tbInfoParagraph.Text = fmt.Sprintf("%s\nTB Net: ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
+	tbInfoParagraph.Text = fmt.Sprintf("%s | TB Net: ↓%s/s ↑%s/s\n%s\n%s", rdmaLabel, inStr, outStr, visibleDeviceInfo, scrollHint)
+
+	// Update TB Net sparklines with separate download/upload
+	// Shift values left and add new values
+	for i := 0; i < len(tbNetInValues)-1; i++ {
+		tbNetInValues[i] = tbNetInValues[i+1]
+		tbNetOutValues[i] = tbNetOutValues[i+1]
+	}
+	// Scale bytes to KB for sparkline
+	tbNetInValues[len(tbNetInValues)-1] = totalBytesIn / 1024
+	tbNetOutValues[len(tbNetOutValues)-1] = totalBytesOut / 1024
+
+	// Find max value for scaling (use same scale for both)
+	maxVal := 1.0 // Minimum to avoid division by zero
+	for _, v := range tbNetInValues {
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+	for _, v := range tbNetOutValues {
+		if v > maxVal {
+			maxVal = v
+		}
+	}
+
+	// Update sparkline data and titles
+	if tbNetSparklineIn != nil {
+		tbNetSparklineIn.Data = tbNetInValues
+		tbNetSparklineIn.MaxVal = maxVal * 1.1
+		tbNetSparklineIn.Title = fmt.Sprintf("↓ %s/s", inStr)
+	}
+	if tbNetSparklineOut != nil {
+		tbNetSparklineOut.Data = tbNetOutValues
+		tbNetSparklineOut.MaxVal = maxVal * 1.1
+		tbNetSparklineOut.Title = fmt.Sprintf("↑ %s/s", outStr)
+	}
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
+	}
 }
