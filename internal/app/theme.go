@@ -22,7 +22,7 @@ var colorMap = map[string]ui.Color{
 	"pink":    ui.ColorPink,
 }
 
-var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white", "lime", "orange", "violet", "pink", "custom"}
+var colorNames = []string{"green", "red", "blue", "skyblue", "magenta", "yellow", "gold", "silver", "white", "lime", "orange", "violet", "pink", "1977"}
 
 var (
 	BracketColor       ui.Color = ui.ColorWhite
@@ -83,7 +83,6 @@ func getANEColor(percent int) ui.Color {
 	return ui.ColorRed
 }
 
-// Updates gauge colors with custom individual colors and dynamic saturation
 func updateCustomGaugeColors() {
 	if cpuGauge != nil {
 		cpuColor := getCPUColor(cpuGauge.Percent)
@@ -204,13 +203,12 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 }
 
 func applyTheme(colorName string, lightMode bool) {
-	isCustom := colorName == "custom"
+	is1977 := colorName == "1977"
 	color, ok := colorMap[colorName]
-	if !ok && !isCustom {
+	if !ok && !is1977 {
 		color = ui.ColorGreen
 		colorName = "green"
-	} else if isCustom {
-		// For custom theme, use green as base color for other UI elements
+	} else if is1977 {
 		color = ui.ColorGreen
 	}
 
@@ -234,7 +232,7 @@ func applyTheme(colorName string, lightMode bool) {
 	ui.Theme.Gauge.Bar = color
 	ui.Theme.BarChart.Bars = []ui.Color{color}
 
-	if isCustom {
+	if is1977 {
 		updateCustomGaugeColors()
 	} else {
 		applyThemeToGauges(color)

@@ -562,8 +562,8 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	memoryUsage.With(prometheus.Labels{"type": "swap_used"}).Set(float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_total"}).Set(float64(memoryMetrics.SwapTotal) / 1024 / 1024 / 1024)
 
-	// Update gauge colors with dynamic saturation if custom theme is active
-	if currentConfig.Theme == "custom" {
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
 		updateCustomGaugeColors()
 	}
 }
@@ -605,8 +605,8 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 	}
 	gpuFreqMHz.Set(float64(gpuMetrics.FreqMHz))
 
-	// Update gauge colors with dynamic saturation if custom theme is active
-	if currentConfig.Theme == "custom" {
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
 		updateCustomGaugeColors()
 	}
 }
