@@ -127,8 +127,13 @@ func GetThunderboltNetStats() []ThunderboltNetStats {
 
 		// Calculate per-second rates if we have previous data
 		if prev, ok := lastTBNetStats[stat.Name]; ok && !lastTBNetUpdateTime.IsZero() {
-			tbStat.BytesInPerSec = float64(stat.BytesRecv-prev.BytesRecv) / elapsed
-			tbStat.BytesOutPerSec = float64(stat.BytesSent-prev.BytesSent) / elapsed
+			// Check for counter wrap/reset
+			if stat.BytesRecv >= prev.BytesRecv {
+				tbStat.BytesInPerSec = float64(stat.BytesRecv-prev.BytesRecv) / elapsed
+			}
+			if stat.BytesSent >= prev.BytesSent {
+				tbStat.BytesOutPerSec = float64(stat.BytesSent-prev.BytesSent) / elapsed
+			}
 		}
 
 		result = append(result, tbStat)

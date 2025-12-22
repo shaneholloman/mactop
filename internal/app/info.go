@@ -92,8 +92,13 @@ func buildInfoLines(themeColor string) []string {
 	infoLines = append(infoLines, formatLine("TB Net", fmt.Sprintf("↑ %s/s ↓ %s/s", tbOut, tbIn)))
 
 	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
-	if cachedTBDeviceInfo != "" {
-		tbLines := strings.Split(cachedTBDeviceInfo, "\n")
+
+	tbInfoMutex.Lock()
+	tbInfo := cachedTBDeviceInfo
+	tbInfoMutex.Unlock()
+
+	if tbInfo != "" {
+		tbLines := strings.Split(tbInfo, "\n")
 		for _, line := range tbLines {
 			if line != "" {
 				infoLines = append(infoLines, fmt.Sprintf("[%s](fg:%s)", line, themeColor))
@@ -146,8 +151,9 @@ func buildInfoText() string {
 		contentWidth = 45
 	}
 
-	// Calculate available height for content (leave room for borders)
-	availableHeight := termHeight - 4
+	// Calculate available height for content (leave room for borders and scroll indicators)
+	// We reserve 2 extra lines for top/bottom scroll indicators
+	availableHeight := termHeight - 6
 	if availableHeight < 5 {
 		availableHeight = 5
 	}

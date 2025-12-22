@@ -83,6 +83,7 @@ var (
 	cachedModelName    string
 	cachedSystemInfo   SystemInfo
 	cachedTBDeviceInfo string
+	tbInfoMutex        sync.Mutex
 	infoScrollOffset   int
 	tbScrollOffset     int
 )

@@ -23,6 +23,9 @@
 - Detailed native metrics for CPU cores (E and P cores) via Apple's Mach Kernel API
 - Memory usage and swap information
 - Network usage information (upload/download speeds)
+- **Thunderbolt bandwidth monitoring**: Real-time throughput for Thunderbolt Bridge interfaces
+- **Thunderbolt Device Tree**: Visual tree of connected Thunderbolt/USB4 devices and their speeds
+- **RDMA Support**: Detection of RDMA over Thunderbolt 5 availability
 - Disk I/O activity (read/write speeds)
 - Multiple volume display (shows Mac HD + mounted external volumes)
 - Easy-to-read terminal UI

@@ -81,10 +81,14 @@ func setupUI() {
 	go func() {
 		info, err := GetThunderboltInfo()
 		if err != nil {
+			tbInfoMutex.Lock()
 			cachedTBDeviceInfo = "Failed to load Thunderbolt info: " + err.Error()
+			tbInfoMutex.Unlock()
 			return
 		}
+		tbInfoMutex.Lock()
 		cachedTBDeviceInfo = info.Description()
+		tbInfoMutex.Unlock()
 	}()
 
 	mainBlock = ui.NewBlock()
