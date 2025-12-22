@@ -691,7 +691,9 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 
 	// Use cached device info
+	tbInfoMutex.Lock()
 	tbDeviceInfo := tbDeviceInfo
+	tbInfoMutex.Unlock()
 	if tbDeviceInfo == "" {
 		tbDeviceInfo = "Loading..."
 	}
