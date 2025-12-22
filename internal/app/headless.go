@@ -40,9 +40,6 @@ func runHeadless(count int) {
 
 	startHeadlessPrometheus()
 
-	ticker := time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
-	defer ticker.Stop()
-
 	encoder := json.NewEncoder(os.Stdout)
 	if headlessPretty {
 		encoder.SetIndent("", "  ")
@@ -69,6 +66,9 @@ func runHeadless(count int) {
 	}
 
 	// Continue with regular ticker
+	ticker := time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
+	defer ticker.Stop()
+
 	for range ticker.C {
 		if samplesCollected > 0 && count > 0 {
 			fmt.Print(",")
