@@ -30,6 +30,7 @@ var (
 	powerValues                         = make([]float64, 35)
 	tbNetInValues                       = make([]float64, 100)
 	tbNetOutValues                      = make([]float64, 100)
+	lastTBInBytes, lastTBOutBytes       float64
 	lastUpdateTime                      time.Time
 	stderrLogger                        = log.New(os.Stderr, "", 0)
 	showHelp, partyMode                 = false, false

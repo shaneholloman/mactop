@@ -85,6 +85,11 @@ func buildInfoLines(themeColor string) []string {
 	}
 
 	infoLines = append(infoLines, "-------------------------")
+
+	tbIn := formatBytes(lastTBInBytes, networkUnit)
+	tbOut := formatBytes(lastTBOutBytes, networkUnit)
+	infoLines = append(infoLines, formatLine("TB Net", fmt.Sprintf("↑ %s/s ↓ %s/s", tbOut, tbIn)))
+
 	infoLines = append(infoLines, formatLine("RDMA", rdmaLabel))
 	if cachedTBDeviceInfo != "" {
 		tbLines := strings.Split(cachedTBDeviceInfo, "\n")

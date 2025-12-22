@@ -672,6 +672,8 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 		totalBytesIn += stat.BytesInPerSec
 		totalBytesOut += stat.BytesOutPerSec
 	}
+	lastTBInBytes = totalBytesIn
+	lastTBOutBytes = totalBytesOut
 	rdmaStatus := CheckRDMAAvailable()
 	rdmaLabel := "RDMA: Disabled"
 	if rdmaStatus.Available {
