@@ -104,7 +104,11 @@ func getASCIIArt() []string {
 func buildInfoText() string {
 	themeColor := "green"
 	if currentConfig.Theme != "" {
-		themeColor = currentConfig.Theme
+		if currentConfig.Theme == "1977" {
+			themeColor = "green"
+		} else {
+			themeColor = currentConfig.Theme
+		}
 	}
 	if IsLightMode && themeColor == "white" {
 		themeColor = "black"

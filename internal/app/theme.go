@@ -30,62 +30,30 @@ var (
 	IsLightMode        bool     = false
 )
 
-// RGB color helper function - creates a 24-bit RGB color for terminals with TrueColor support
-func rgbColor(r, g, b uint8) ui.Color {
-	// TrueColor format: 0x1000000 + (r << 16) + (g << 8) + b
-	return ui.Color(0x1000000 + (uint32(r) << 16) + (uint32(g) << 8) + uint32(b))
-}
-
-// Adjusts saturation of an RGB color based on a percentage (0-100)
-// At 0%, the color is at 50% saturation; at 100%, it's at full saturation
-func adjustColorSaturation(baseR, baseG, baseB uint8, percent int) ui.Color {
-	// Clamp percent to 0-100
-	if percent < 0 {
-		percent = 0
-	}
-	if percent > 100 {
-		percent = 100
-	}
-
-	// Map 0-100% usage to 50-100% saturation
-	// saturation = 0.5 + (percent / 100) * 0.5
-	saturationFactor := 0.5 + (float64(percent) / 100.0 * 0.5)
-
-	// Calculate grayscale value for desaturation
-	gray := uint8(0.299*float64(baseR) + 0.587*float64(baseG) + 0.114*float64(baseB))
-
-	// Interpolate between grayscale and full color based on saturation
-	r := uint8(float64(gray) + saturationFactor*(float64(baseR)-float64(gray)))
-	g := uint8(float64(gray) + saturationFactor*(float64(baseG)-float64(gray)))
-	b := uint8(float64(gray) + saturationFactor*(float64(baseB)-float64(gray)))
-
-	return rgbColor(r, g, b)
-}
-
 // Individual gauge color generators - using standard colors for better compatibility
-func getCPUColor(percent int) ui.Color {
+func getCPUColor() ui.Color {
 	// CPU = Green
 	return ui.ColorGreen
 }
 
-func getGPUColor(percent int) ui.Color {
+func getGPUColor() ui.Color {
 	// GPU = Magenta (closest to purple in standard colors)
 	return ui.ColorMagenta
 }
 
-func getMemoryColor(percent int) ui.Color {
+func getMemoryColor() ui.Color {
 	// Memory = Blue
 	return ui.ColorBlue
 }
 
-func getANEColor(percent int) ui.Color {
+func getANEColor() ui.Color {
 	// ANE = Red
 	return ui.ColorRed
 }
 
 func update1977GaugeColors() {
 	if cpuGauge != nil {
-		cpuColor := getCPUColor(cpuGauge.Percent)
+		cpuColor := getCPUColor()
 		cpuGauge.BarColor = cpuColor
 		cpuGauge.BorderStyle.Fg = cpuColor
 		cpuGauge.TitleStyle.Fg = cpuColor
@@ -93,7 +61,7 @@ func update1977GaugeColors() {
 	}
 
 	if gpuGauge != nil {
-		gpuColor := getGPUColor(gpuGauge.Percent)
+		gpuColor := getGPUColor()
 		gpuGauge.BarColor = gpuColor
 		gpuGauge.BorderStyle.Fg = gpuColor
 		gpuGauge.TitleStyle.Fg = gpuColor
@@ -101,7 +69,7 @@ func update1977GaugeColors() {
 	}
 
 	if memoryGauge != nil {
-		memColor := getMemoryColor(memoryGauge.Percent)
+		memColor := getMemoryColor()
 		memoryGauge.BarColor = memColor
 		memoryGauge.BorderStyle.Fg = memColor
 		memoryGauge.TitleStyle.Fg = memColor
@@ -109,7 +77,7 @@ func update1977GaugeColors() {
 	}
 
 	if aneGauge != nil {
-		aneColor := getANEColor(aneGauge.Percent)
+		aneColor := getANEColor()
 		aneGauge.BarColor = aneColor
 		aneGauge.BorderStyle.Fg = aneColor
 		aneGauge.TitleStyle.Fg = aneColor
@@ -280,6 +248,9 @@ func GetProcessTextColor(isCurrentUser bool) string {
 		case "pink":
 			return "pink"
 		default:
+			if currentConfig.Theme == "1977" {
+				return "green"
+			}
 			return currentConfig.Theme
 		}
 	}
