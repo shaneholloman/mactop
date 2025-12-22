@@ -124,15 +124,19 @@ func setupUI() {
 	ioSparklineGroup = w.NewSparklineGroup(ioSparkline)
 	ioSparklineGroup.Title = "IO / Bandwidth History"
 
-	// TB Net plot using braille for download/upload
-	tbNetPlot = w.NewPlot()
-	tbNetPlot.Title = "TB Net ↓0/s ↑0/s"
-	tbNetPlot.Data = [][]float64{tbNetInValues, tbNetOutValues}
-	tbNetPlot.LineColors = []ui.Color{ui.ColorGreen, ui.ColorMagenta}
-	tbNetPlot.PlotType = w.LineChart
-	tbNetPlot.Marker = w.MarkerDot
-	// tbNetPlot.HorizontalScale = 0 // Remove explicit scale to see if default works
-	tbNetPlot.ShowAxes = false // Clean look
+	// TB Net sparklines
+	tbNetSparklineIn = w.NewSparkline()
+	tbNetSparklineIn.Data = tbNetInValues
+	tbNetSparklineIn.LineColor = ui.ColorGreen
+	tbNetSparklineIn.TitleStyle.Fg = ui.ColorGreen
+
+	tbNetSparklineOut = w.NewSparkline()
+	tbNetSparklineOut.Data = tbNetOutValues
+	tbNetSparklineOut.LineColor = ui.ColorMagenta
+	tbNetSparklineOut.TitleStyle.Fg = ui.ColorMagenta
+
+	tbNetSparklineGroup = w.NewSparklineGroup(tbNetSparklineIn, tbNetSparklineOut)
+	tbNetSparklineGroup.Title = "TB Net ↓0/s ↑0/s"
 
 	updateProcessList()
 
@@ -700,37 +704,29 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	tbNetInValues[len(tbNetInValues)-1] = totalBytesIn / 1024
 	tbNetOutValues[len(tbNetOutValues)-1] = totalBytesOut / 1024
 
-	// Determine visible data based on plot width
-	w, _ := ui.TerminalDimensions()
-	plotWidth := (w / 2) - 4 // Half screen width approx minus padding
-	if plotWidth < 10 {
-		plotWidth = 10
-	}
-	if plotWidth > len(tbNetInValues) {
-		plotWidth = len(tbNetInValues)
-	}
-
-	// Slice to show only the newest data fitting in the plot
-	visibleIn := tbNetInValues[len(tbNetInValues)-plotWidth:]
-	visibleOut := tbNetOutValues[len(tbNetOutValues)-plotWidth:]
-
-	// Find max value for scaling based on VISIBLE data
+	// Find max value for scaling (use same scale for both)
 	maxVal := 1.0 // Minimum to avoid division by zero
-	for _, v := range visibleIn {
+	for _, v := range tbNetInValues {
 		if v > maxVal {
 			maxVal = v
 		}
 	}
-	for _, v := range visibleOut {
+	for _, v := range tbNetOutValues {
 		if v > maxVal {
 			maxVal = v
 		}
 	}
 
-	// Update plot data and title
-	if tbNetPlot != nil {
-		tbNetPlot.Data = [][]float64{visibleIn, visibleOut}
-		tbNetPlot.MaxVal = maxVal * 1.1 // Auto-scale with 10% headroom
-		tbNetPlot.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
+	// Update sparklines and group title
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.Title = fmt.Sprintf("TB Net: ↓%s/s ↑%s/s", inStr, outStr)
+		if tbNetSparklineIn != nil {
+			tbNetSparklineIn.Data = tbNetInValues
+			tbNetSparklineIn.MaxVal = maxVal * 1.1
+		}
+		if tbNetSparklineOut != nil {
+			tbNetSparklineOut.Data = tbNetOutValues
+			tbNetSparklineOut.MaxVal = maxVal * 1.1
+		}
 	}
 }

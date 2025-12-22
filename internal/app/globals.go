@@ -23,53 +23,55 @@ var (
 	processList                                                 *w.List
 	sparkline, gpuSparkline, ioSparkline                        *w.Sparkline
 	sparklineGroup, gpuSparklineGroup, ioSparklineGroup         *w.SparklineGroup
-	tbNetPlot                                                   *w.Plot
-	cpuCoreWidget                                               *CPUCoreWidget
-	powerValues                                                 = make([]float64, 35)
-	tbNetInValues                                               = make([]float64, 100)
-	tbNetOutValues                                              = make([]float64, 100)
-	lastUpdateTime                                              time.Time
-	stderrLogger                                                = log.New(os.Stderr, "", 0)
-	showHelp, partyMode                                         = false, false
-	updateInterval                                              = 1000
-	done                                                        = make(chan struct{})
-	partyTicker                                                 *time.Ticker
-	lastCPUTimes                                                []CPUUsage
-	firstRun                                                    = true
-	sortReverse                                                 = false
-	columns                                                     = []string{"PID", "USER", "VIRT", "RES", "CPU", "MEM", "TIME", "CMD"}
-	selectedColumn                                              = 4
-	maxPowerSeen                                                = 0.1
-	gpuValues                                                   = make([]float64, 100)
-	ioValues                                                    = make([]float64, 100)
-	prometheusPort                                              string
-	headless                                                    bool
-	headlessCount                                               int
-	interruptChan                                               = make(chan struct{}, 10)
-	lastNetStats                                                net.IOCountersStat
-	lastDiskStats                                               disk.IOCountersStat
-	lastNetDiskTime                                             time.Time
-	netDiskMutex                                                sync.Mutex
-	killPending                                                 bool
-	killPID                                                     int
-	currentUser                                                 string
-	lastProcesses                                               []ProcessMetrics
-	networkUnit                                                 string
-	diskUnit                                                    string
-	tempUnit                                                    string
-	currentLayoutNum                                            int
-	totalLayouts                                                int
-	currentColorName                                            string
-	lastCPUMetrics                                              CPUMetrics
-	lastGPUMetrics                                              GPUMetrics
-	lastNetDiskMetrics                                          NetDiskMetrics
-	lastActiveLayout                                            string = "default"
-	cpuMetricsChan                                                     = make(chan CPUMetrics, 1)
-	gpuMetricsChan                                                     = make(chan GPUMetrics, 1)
-	netdiskMetricsChan                                                 = make(chan NetDiskMetrics, 1)
-	tbNetStatsChan                                                     = make(chan []ThunderboltNetStats, 1)
-	processMetricsChan                                                 = make(chan []ProcessMetrics, 1)
-	ticker                                                      *time.Ticker
+
+	tbNetSparklineIn, tbNetSparklineOut *w.Sparkline
+	tbNetSparklineGroup                 *w.SparklineGroup
+	cpuCoreWidget                       *CPUCoreWidget
+	powerValues                         = make([]float64, 35)
+	tbNetInValues                       = make([]float64, 100)
+	tbNetOutValues                      = make([]float64, 100)
+	lastUpdateTime                      time.Time
+	stderrLogger                        = log.New(os.Stderr, "", 0)
+	showHelp, partyMode                 = false, false
+	updateInterval                      = 1000
+	done                                = make(chan struct{})
+	partyTicker                         *time.Ticker
+	lastCPUTimes                        []CPUUsage
+	firstRun                            = true
+	sortReverse                         = false
+	columns                             = []string{"PID", "USER", "VIRT", "RES", "CPU", "MEM", "TIME", "CMD"}
+	selectedColumn                      = 4
+	maxPowerSeen                        = 0.1
+	gpuValues                           = make([]float64, 100)
+	ioValues                            = make([]float64, 100)
+	prometheusPort                      string
+	headless                            bool
+	headlessCount                       int
+	interruptChan                       = make(chan struct{}, 10)
+	lastNetStats                        net.IOCountersStat
+	lastDiskStats                       disk.IOCountersStat
+	lastNetDiskTime                     time.Time
+	netDiskMutex                        sync.Mutex
+	killPending                         bool
+	killPID                             int
+	currentUser                         string
+	lastProcesses                       []ProcessMetrics
+	networkUnit                         string
+	diskUnit                            string
+	tempUnit                            string
+	currentLayoutNum                    int
+	totalLayouts                        int
+	currentColorName                    string
+	lastCPUMetrics                      CPUMetrics
+	lastGPUMetrics                      GPUMetrics
+	lastNetDiskMetrics                  NetDiskMetrics
+	lastActiveLayout                    string = "default"
+	cpuMetricsChan                             = make(chan CPUMetrics, 1)
+	gpuMetricsChan                             = make(chan GPUMetrics, 1)
+	netdiskMetricsChan                         = make(chan NetDiskMetrics, 1)
+	tbNetStatsChan                             = make(chan []ThunderboltNetStats, 1)
+	processMetricsChan                         = make(chan []ProcessMetrics, 1)
+	ticker                              *time.Ticker
 
 	cachedHostname      string
 	cachedCurrentUser   string
