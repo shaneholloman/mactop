@@ -47,6 +47,7 @@ var (
 	ioValues                            = make([]float64, 100)
 	prometheusPort                      string
 	headless                            bool
+	headlessPretty                      bool
 	headlessCount                       int
 	interruptChan                       = make(chan struct{}, 10)
 	lastNetStats                        net.IOCountersStat

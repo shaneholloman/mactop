@@ -16,6 +16,7 @@ type ThunderboltBus struct {
 	Vendor        string                 `json:"vendor_name_key"`
 	Receptacle    *ThunderboltReceptacle `json:"receptacle_1_tag"`
 	ConnectedDevs []ThunderboltDevice    `json:"_items"`
+	NetworkStats  *ThunderboltNetStats   `json:"network_stats,omitempty"`
 }
 
 type ThunderboltReceptacle struct {
@@ -263,11 +264,12 @@ type ThunderboltOutput struct {
 }
 
 type ThunderboltBusOutput struct {
-	Name    string                    `json:"name"`
-	Status  string                    `json:"status"` // Active, Inactive
-	Icon    string                    `json:"icon"`   // ⚡, ○
-	Speed   string                    `json:"speed,omitempty"`
-	Devices []ThunderboltDeviceOutput `json:"devices,omitempty"`
+	Name         string                    `json:"name"`
+	Status       string                    `json:"status"` // Active, Inactive
+	Icon         string                    `json:"icon"`   // ⚡, ○
+	Speed        string                    `json:"speed,omitempty"`
+	Devices      []ThunderboltDeviceOutput `json:"devices,omitempty"`
+	NetworkStats *ThunderboltNetStats      `json:"network_stats,omitempty"`
 }
 
 type ThunderboltDeviceOutput struct {

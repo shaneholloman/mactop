@@ -336,6 +336,7 @@ func Run() {
 
 	flag.StringVar(&prometheusPort, "prometheus", "", "Port to run Prometheus metrics server on (e.g. :9090)")
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
+	flag.BoolVar(&headlessPretty, "pretty", false, "Pretty print JSON output in headless mode")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")

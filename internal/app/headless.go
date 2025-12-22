@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -30,25 +33,27 @@ func runHeadless(count int) {
 	defer ticker.Stop()
 
 	type HeadlessOutput struct {
-		Timestamp             string                `json:"timestamp"`
-		SocMetrics            SocMetrics            `json:"soc_metrics"`
-		Memory                MemoryMetrics         `json:"memory"`
-		NetDisk               NetDiskMetrics        `json:"net_disk"`
-		CPUUsage              float64               `json:"cpu_usage"`
-		GPUUsage              float64               `json:"gpu_usage"`
-		CoreUsages            []float64             `json:"core_usages"`
-		SystemInfo            SystemInfo            `json:"system_info"`
-		ThermalState          string                `json:"thermal_state"`
-		ThunderboltInfo       *ThunderboltOutput    `json:"thunderbolt_info"`
-		ThunderboltNetStats   []ThunderboltNetStats `json:"thunderbolt_net_stats,omitempty"`
-		TBNetTotalBytesInSec  float64               `json:"tb_net_total_bytes_in_per_sec"`
-		TBNetTotalBytesOutSec float64               `json:"tb_net_total_bytes_out_per_sec"`
-		RDMAStatus            RDMAStatus            `json:"rdma_status"`
-		CPUTemp               float32               `json:"cpu_temp"`
-		GPUTemp               float32               `json:"gpu_temp"`
+		Timestamp             string             `json:"timestamp"`
+		SocMetrics            SocMetrics         `json:"soc_metrics"`
+		Memory                MemoryMetrics      `json:"memory"`
+		NetDisk               NetDiskMetrics     `json:"net_disk"`
+		CPUUsage              float64            `json:"cpu_usage"`
+		GPUUsage              float64            `json:"gpu_usage"`
+		CoreUsages            []float64          `json:"core_usages"`
+		SystemInfo            SystemInfo         `json:"system_info"`
+		ThermalState          string             `json:"thermal_state"`
+		ThunderboltInfo       *ThunderboltOutput `json:"thunderbolt_info"`
+		TBNetTotalBytesInSec  float64            `json:"tb_net_total_bytes_in_per_sec"`
+		TBNetTotalBytesOutSec float64            `json:"tb_net_total_bytes_out_per_sec"`
+		RDMAStatus            RDMAStatus         `json:"rdma_status"`
+		CPUTemp               float32            `json:"cpu_temp"`
+		GPUTemp               float32            `json:"gpu_temp"`
 	}
 
 	encoder := json.NewEncoder(os.Stdout)
+	if headlessPretty {
+		encoder.SetIndent("", "  ")
+	}
 
 	GetCPUPercentages()
 
@@ -99,6 +104,47 @@ func runHeadless(count int) {
 			tbNetTotalOut += stat.BytesOutPerSec
 		}
 
+		// Sort and assign TB Net Stats to Buses
+		var enStats []ThunderboltNetStats
+		for _, stat := range tbNetStats {
+			if strings.HasPrefix(stat.InterfaceName, "en") {
+				enStats = append(enStats, stat)
+			}
+		}
+
+		// Sort en stats by interface number (en2, en3, ...)
+		sort.Slice(enStats, func(i, j int) bool {
+			// Extract number from enX
+			getNu := func(s string) int {
+				numStr := strings.TrimPrefix(s, "en")
+				n, _ := strconv.Atoi(numStr)
+				return n
+			}
+			return getNu(enStats[i].InterfaceName) < getNu(enStats[j].InterfaceName)
+		})
+
+		// Assign to buses based on Bus ID
+		// Assuming Bus 0 -> 1st en interface (e.g. en2), Bus 1 -> 2nd (en3)
+		if tbInfo != nil && len(tbInfo.Buses) > 0 {
+			for i := range tbInfo.Buses {
+				bus := &tbInfo.Buses[i]
+				// Format is typically "TB4 Bus 5" or "TB4 @ TB3 Bus 3"
+				// The bus number is always the last element
+				parts := strings.Fields(bus.Name)
+				if len(parts) > 0 {
+					lastPart := parts[len(parts)-1]
+					if busID, err := strconv.Atoi(lastPart); err == nil {
+						// Map BusID to sorted stats index
+						if busID >= 0 && busID < len(enStats) {
+							// Clone stat to avoid pointer issues if needed, or just assign address
+							statCopy := enStats[busID]
+							bus.NetworkStats = &statCopy
+						}
+					}
+				}
+			}
+		}
+
 		output := HeadlessOutput{
 			Timestamp:             time.Now().Format(time.RFC3339),
 			SocMetrics:            m,
@@ -109,7 +155,6 @@ func runHeadless(count int) {
 			CoreUsages:            percentages,
 			SystemInfo:            getSOCInfo(),
 			ThunderboltInfo:       tbInfo,
-			ThunderboltNetStats:   tbNetStats,
 			TBNetTotalBytesInSec:  tbNetTotalIn,
 			TBNetTotalBytesOutSec: tbNetTotalOut,
 			RDMAStatus:            CheckRDMAAvailable(),
