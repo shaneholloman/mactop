@@ -38,14 +38,7 @@ func runHeadless(count int) {
 	}
 	defer cleanupSocMetrics()
 
-	if prometheusPort != "" {
-		go func() {
-			http.Handle("/metrics", promhttp.Handler())
-			if err := http.ListenAndServe(prometheusPort, nil); err != nil {
-				fmt.Fprintf(os.Stderr, "Prometheus server error: %v\n", err)
-			}
-		}()
-	}
+	startHeadlessPrometheus()
 
 	ticker := time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
 	defer ticker.Stop()
@@ -55,45 +48,32 @@ func runHeadless(count int) {
 		encoder.SetIndent("", "  ")
 	}
 
-	GetCPUPercentages()
-	getNetDiskMetrics()
-	GetThunderboltNetStats()
+	tbInfo := performHeadlessWarmup()
 
-	startInit := time.Now()
-
-	tbInfo, _ := GetFormattedThunderboltInfo()
-	initDuration := time.Since(startInit)
-
+	// Calculate and wait for initial delay
 	if count > 0 {
 		fmt.Print("[")
 	}
 
-	initialDelay := time.Duration(updateInterval)*time.Millisecond - initDuration
-	if initialDelay > 0 {
-		time.Sleep(initialDelay)
-	}
-
 	samplesCollected := 0
 
-	// First manual collection after initial delay
-	output := collectHeadlessData(tbInfo)
-	if err := encoder.Encode(output); err != nil {
+	// First manual collection
+	if err := processHeadlessSample(encoder, tbInfo); err != nil {
 		fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 	}
 	samplesCollected++
+
 	if count > 0 && samplesCollected >= count {
 		fmt.Println("]")
 		return
 	}
 
-	// Continue with regular ticker for subsequent samples
+	// Continue with regular ticker
 	for range ticker.C {
 		if samplesCollected > 0 && count > 0 {
 			fmt.Print(",")
 		}
-		output := collectHeadlessData(tbInfo)
-
-		if err := encoder.Encode(output); err != nil {
+		if err := processHeadlessSample(encoder, tbInfo); err != nil {
 			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 		}
 
@@ -103,6 +83,38 @@ func runHeadless(count int) {
 			return
 		}
 	}
+}
+
+func startHeadlessPrometheus() {
+	if prometheusPort != "" {
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			if err := http.ListenAndServe(prometheusPort, nil); err != nil {
+				fmt.Fprintf(os.Stderr, "Prometheus server error: %v\n", err)
+			}
+		}()
+	}
+}
+
+func performHeadlessWarmup() *ThunderboltOutput {
+	GetCPUPercentages()
+	getNetDiskMetrics()
+	GetThunderboltNetStats()
+
+	startInit := time.Now()
+	tbInfo, _ := GetFormattedThunderboltInfo()
+	initDuration := time.Since(startInit)
+
+	initialDelay := time.Duration(updateInterval)*time.Millisecond - initDuration
+	if initialDelay > 0 {
+		time.Sleep(initialDelay)
+	}
+	return tbInfo
+}
+
+func processHeadlessSample(encoder *json.Encoder, tbInfo *ThunderboltOutput) error {
+	output := collectHeadlessData(tbInfo)
+	return encoder.Encode(output)
 }
 
 func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {

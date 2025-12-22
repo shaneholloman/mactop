@@ -71,14 +71,7 @@ func applyThemeToSparklines(color ui.Color) {
 		gpuSparklineGroup.BorderStyle.Fg = color
 		gpuSparklineGroup.TitleStyle.Fg = color
 	}
-	if ioSparkline != nil {
-		ioSparkline.LineColor = color
-		ioSparkline.TitleStyle = ui.NewStyle(color)
-	}
-	if ioSparklineGroup != nil {
-		ioSparklineGroup.BorderStyle.Fg = color
-		ioSparklineGroup.TitleStyle.Fg = color
-	}
+
 	if tbNetSparklineIn != nil {
 		tbNetSparklineIn.LineColor = color
 		tbNetSparklineIn.TitleStyle = ui.NewStyle(color)

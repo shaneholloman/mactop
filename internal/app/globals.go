@@ -21,8 +21,8 @@ var (
 	tbInfoParagraph                                             *w.Paragraph
 	grid                                                        *ui.Grid
 	processList                                                 *w.List
-	sparkline, gpuSparkline, ioSparkline                        *w.Sparkline
-	sparklineGroup, gpuSparklineGroup, ioSparklineGroup         *w.SparklineGroup
+	sparkline, gpuSparkline                                     *w.Sparkline
+	sparklineGroup, gpuSparklineGroup                           *w.SparklineGroup
 
 	tbNetSparklineIn, tbNetSparklineOut *w.Sparkline
 	tbNetSparklineGroup                 *w.SparklineGroup
@@ -44,36 +44,36 @@ var (
 	selectedColumn                      = 4
 	maxPowerSeen                        = 0.1
 	gpuValues                           = make([]float64, 100)
-	ioValues                            = make([]float64, 100)
-	prometheusPort                      string
-	headless                            bool
-	headlessPretty                      bool
-	headlessCount                       int
-	interruptChan                       = make(chan struct{}, 10)
-	lastNetStats                        net.IOCountersStat
-	lastDiskStats                       disk.IOCountersStat
-	lastNetDiskTime                     time.Time
-	netDiskMutex                        sync.Mutex
-	killPending                         bool
-	killPID                             int
-	currentUser                         string
-	lastProcesses                       []ProcessMetrics
-	networkUnit                         string
-	diskUnit                            string
-	tempUnit                            string
-	currentLayoutNum                    int
-	totalLayouts                        int
-	currentColorName                    string
-	lastCPUMetrics                      CPUMetrics
-	lastGPUMetrics                      GPUMetrics
-	lastNetDiskMetrics                  NetDiskMetrics
-	lastActiveLayout                    string = "default"
-	cpuMetricsChan                             = make(chan CPUMetrics, 1)
-	gpuMetricsChan                             = make(chan GPUMetrics, 1)
-	netdiskMetricsChan                         = make(chan NetDiskMetrics, 1)
-	tbNetStatsChan                             = make(chan []ThunderboltNetStats, 1)
-	processMetricsChan                         = make(chan []ProcessMetrics, 1)
-	ticker                              *time.Ticker
+
+	prometheusPort     string
+	headless           bool
+	headlessPretty     bool
+	headlessCount      int
+	interruptChan      = make(chan struct{}, 10)
+	lastNetStats       net.IOCountersStat
+	lastDiskStats      disk.IOCountersStat
+	lastNetDiskTime    time.Time
+	netDiskMutex       sync.Mutex
+	killPending        bool
+	killPID            int
+	currentUser        string
+	lastProcesses      []ProcessMetrics
+	networkUnit        string
+	diskUnit           string
+	tempUnit           string
+	currentLayoutNum   int
+	totalLayouts       int
+	currentColorName   string
+	lastCPUMetrics     CPUMetrics
+	lastGPUMetrics     GPUMetrics
+	lastNetDiskMetrics NetDiskMetrics
+	lastActiveLayout   string = "default"
+	cpuMetricsChan            = make(chan CPUMetrics, 1)
+	gpuMetricsChan            = make(chan GPUMetrics, 1)
+	netdiskMetricsChan        = make(chan NetDiskMetrics, 1)
+	tbNetStatsChan            = make(chan []ThunderboltNetStats, 1)
+	processMetricsChan        = make(chan []ProcessMetrics, 1)
+	ticker             *time.Ticker
 
 	cachedHostname      string
 	cachedCurrentUser   string

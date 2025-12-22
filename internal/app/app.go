@@ -98,10 +98,9 @@ func setupUI() {
 	termWidth, _ := ui.TerminalDimensions()
 	numPoints := termWidth / 2
 	numPointsGPU := termWidth / 2
-	numPointsIO := termWidth / 2
+
 	powerValues = make([]float64, numPoints)
 	gpuValues = make([]float64, numPointsGPU)
-	ioValues = make([]float64, numPointsIO)
 
 	sparkline = w.NewSparkline()
 	sparkline.MaxHeight = 100
@@ -114,13 +113,6 @@ func setupUI() {
 	gpuSparkline.Data = gpuValues
 	gpuSparklineGroup = w.NewSparklineGroup(gpuSparkline)
 	gpuSparklineGroup.Title = "GPU Usage History"
-
-	ioSparkline = w.NewSparkline()
-	ioSparkline.MaxHeight = 100
-	ioSparkline.Data = ioValues
-	ioSparkline.LineColor = ui.ColorCyan
-	ioSparklineGroup = w.NewSparklineGroup(ioSparkline)
-	ioSparklineGroup.Title = "IO / Bandwidth History"
 
 	// TB Net sparklines
 	tbNetSparklineIn = w.NewSparkline()
