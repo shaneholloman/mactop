@@ -74,8 +74,9 @@ var (
 	cachedKernelVersion string
 	cachedOSVersion     string
 
-	cachedModelName  string
-	cachedSystemInfo SystemInfo
+	cachedModelName    string
+	cachedSystemInfo   SystemInfo
+	cachedTBDeviceInfo string
 )
 
 var (

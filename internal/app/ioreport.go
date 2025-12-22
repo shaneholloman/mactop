@@ -117,8 +117,3 @@ func getSocThermalState() int {
 func DebugIOReport() {
 	C.debugIOReport()
 }
-
-// MonitorIOReport monitors channels for changes over a duration
-func MonitorIOReport() {
-	C.debugMonitorChannels(C.int(5000)) // Monitor for 5 seconds
-}

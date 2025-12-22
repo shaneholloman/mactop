@@ -81,10 +81,10 @@ func setupUI() {
 	go func() {
 		info, err := GetThunderboltInfo()
 		if err != nil {
-			tbInfoParagraph.Text = "Failed to load Thunderbolt info: " + err.Error()
+			cachedTBDeviceInfo = "Failed to load Thunderbolt info: " + err.Error()
 			return
 		}
-		tbInfoParagraph.Text = info.Description()
+		cachedTBDeviceInfo = info.Description()
 	}()
 
 	mainBlock = ui.NewBlock()
@@ -659,9 +659,9 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 		totalBytesOut += stat.BytesOutPerSec
 	}
 	rdmaStatus := CheckRDMAAvailable()
-	rdmaLabel := "RDMA: No"
+	rdmaLabel := "RDMA: Disabled"
 	if rdmaStatus.Available {
-		rdmaLabel = "RDMA: Yes"
+		rdmaLabel = "RDMA: Enabled"
 	}
 
 	// Use formatBytes for consistent unit display
@@ -671,12 +671,12 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 	// Set simple title
 	tbInfoParagraph.Title = "Thunderbolt / RDMA"
 
-	// Get Thunderbolt device list
-	tbDeviceInfo := ""
-	if info, err := GetThunderboltInfo(); err == nil {
-		tbDeviceInfo = info.Description()
+	// Use cached device info from startup goroutine
+	tbDeviceInfo := cachedTBDeviceInfo
+	if tbDeviceInfo == "" {
+		tbDeviceInfo = "Loading..."
 	}
 
 	// Show RDMA status and bandwidth in text, above device list
-	tbInfoParagraph.Text = fmt.Sprintf("%s | ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
+	tbInfoParagraph.Text = fmt.Sprintf("%s\nTB Net: ↓%s/s ↑%s/s\n%s", rdmaLabel, inStr, outStr, tbDeviceInfo)
 }
