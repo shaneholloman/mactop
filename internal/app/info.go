@@ -140,20 +140,48 @@ func buildInfoText() string {
 		contentWidth = 45
 	}
 
-	maxHeight := len(infoLines)
-	if showAscii {
-		if len(asciiArt) > maxHeight {
-			maxHeight = len(asciiArt)
-		}
+	// Calculate available height for content (leave room for borders)
+	availableHeight := termHeight - 4
+	if availableHeight < 5 {
+		availableHeight = 5
 	}
-	contentHeight := maxHeight
 
-	paddingTop := (termHeight - contentHeight) / 2
-	if paddingTop > 5 {
-		paddingTop = paddingTop - 5
+	// Determine total content height
+	totalLines := len(infoLines)
+	if showAscii && len(asciiArt) > totalLines {
+		totalLines = len(asciiArt)
 	}
-	if paddingTop < 0 {
-		paddingTop = 0
+
+	// Clamp scroll offset
+	maxScroll := totalLines - availableHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if infoScrollOffset > maxScroll {
+		infoScrollOffset = maxScroll
+	}
+	if infoScrollOffset < 0 {
+		infoScrollOffset = 0
+	}
+
+	// Calculate visible range
+	startLine := infoScrollOffset
+	endLine := startLine + availableHeight
+	if endLine > totalLines {
+		endLine = totalLines
+	}
+
+	// Determine padding based on whether content needs scrolling
+	paddingTop := 0
+	if totalLines <= availableHeight {
+		// Content fits, center it
+		paddingTop = (termHeight - totalLines) / 2
+		if paddingTop > 5 {
+			paddingTop = paddingTop - 5
+		}
+		if paddingTop < 0 {
+			paddingTop = 0
+		}
 	}
 
 	paddingLeft := (termWidth - contentWidth) / 2
@@ -167,7 +195,12 @@ func buildInfoText() string {
 
 	rainbowColors := []string{"red", "magenta", "blue", "skyblue", "green", "yellow"}
 
-	for i := 0; i < maxHeight; i++ {
+	// Show scroll indicator if needed
+	if infoScrollOffset > 0 {
+		combinedText.WriteString(fmt.Sprintf("%s[↑ Scroll up (k/↑)](fg:%s)\n", paddingStr, themeColor))
+	}
+
+	for i := startLine; i < endLine; i++ {
 		asciiLine := ""
 		if showAscii {
 			if i < len(asciiArt) {
@@ -188,6 +221,11 @@ func buildInfoText() string {
 		} else {
 			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
 		}
+	}
+
+	// Show scroll indicator if there's more below
+	if endLine < totalLines {
+		combinedText.WriteString(fmt.Sprintf("%s[↓ Scroll down (j/↓)](fg:%s)\n", paddingStr, themeColor))
 	}
 
 	return combinedText.String()

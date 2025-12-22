@@ -77,6 +77,7 @@ var (
 	cachedModelName    string
 	cachedSystemInfo   SystemInfo
 	cachedTBDeviceInfo string
+	infoScrollOffset   int
 )
 
 var (
