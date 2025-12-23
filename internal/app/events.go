@@ -72,7 +72,7 @@ func updateLayout(w, h int) {
 	if w < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | BG: b | Exit: q "
+		mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
 	}
 	if w > 2 && h > 2 {
 		grid.SetRect(1, 1, w-1, h-1)

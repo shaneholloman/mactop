@@ -293,6 +293,13 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 		tbInfoParagraph.TitleStyle.Bg = CurrentBgColor
 		tbInfoParagraph.TextStyle = ui.NewStyle(color, CurrentBgColor)
 	}
+	if infoParagraph != nil {
+		infoParagraph.BorderStyle.Fg = color
+		infoParagraph.BorderStyle.Bg = CurrentBgColor
+		infoParagraph.TitleStyle.Fg = color
+		infoParagraph.TitleStyle.Bg = CurrentBgColor
+		infoParagraph.TextStyle = ui.NewStyle(color, CurrentBgColor)
+	}
 }
 
 func applyTheme(colorName string, lightMode bool) {
@@ -443,6 +450,12 @@ func cycleTheme() {
 	nextIndex := (currentIndex + 1) % len(themeOrder)
 	currentColorName = themeOrder[nextIndex]
 	applyTheme(themeOrder[nextIndex], IsLightMode)
+
+	currentConfig.Theme = currentColorName
+	saveConfig()
+
+	updateInfoUI()
+
 	if mainBlock != nil {
 		displayColorName := currentColorName
 		if IsLightMode && currentColorName == "white" {
