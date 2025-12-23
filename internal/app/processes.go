@@ -421,7 +421,7 @@ func updateProcessList() {
 	}
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
-	if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+	if IsCatppuccinTheme(currentConfig.Theme) {
 		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
 	} else if IsLightMode && currentConfig.Theme == "white" {
 		themeColorStr = "black"
@@ -440,7 +440,7 @@ func updateProcessList() {
 	selectedHeaderFg := "black"
 	if themeColorStr == "black" {
 		selectedHeaderFg = "white"
-	} else if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+	} else if IsCatppuccinTheme(currentConfig.Theme) {
 		// Use Base color (dark) for Catppuccin themes to contrast with bright accent colors
 		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
 	}

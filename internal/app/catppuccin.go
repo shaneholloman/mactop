@@ -181,13 +181,13 @@ var (
 func GetCatppuccinHex(theme, colorName string) string {
 	var hexMap map[string]string
 	switch theme {
-	case "catppuccin-latte":
+	case "latte":
 		hexMap = LatteHex
-	case "catppuccin-frappe":
+	case "frappe":
 		hexMap = FrappeHex
-	case "catppuccin-macchiato":
+	case "macchiato":
 		hexMap = MacchiatoHex
-	case "catppuccin-mocha":
+	case "mocha":
 		hexMap = MochaHex
 	default:
 		return "#ffffff"
@@ -200,13 +200,13 @@ func GetCatppuccinHex(theme, colorName string) string {
 
 func GetCatppuccinPalette(name string) *CatppuccinPalette {
 	switch name {
-	case "catppuccin-latte":
+	case "latte":
 		return &CatppuccinLatte
-	case "catppuccin-frappe":
+	case "frappe":
 		return &CatppuccinFrappe
-	case "catppuccin-macchiato":
+	case "macchiato":
 		return &CatppuccinMacchiato
-	case "catppuccin-mocha":
+	case "mocha":
 		return &CatppuccinMocha
 	default:
 		return nil

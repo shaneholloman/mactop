@@ -2,29 +2,28 @@ package app
 
 import (
 	"fmt"
-	"strings"
 
 	ui "github.com/metaspartan/gotui/v4"
 )
 
 var colorMap = map[string]ui.Color{
-	"green":                ui.ColorGreen,
-	"red":                  ui.ColorRed,
-	"blue":                 ui.ColorBlue,
-	"skyblue":              ui.ColorSkyBlue,
-	"magenta":              ui.ColorMagenta,
-	"yellow":               ui.ColorYellow,
-	"gold":                 ui.ColorGold,
-	"silver":               ui.ColorSilver,
-	"white":                ui.ColorWhite,
-	"lime":                 ui.ColorLime,
-	"orange":               ui.ColorOrange,
-	"violet":               ui.ColorViolet,
-	"pink":                 ui.ColorPink,
-	"catppuccin-latte":     CatppuccinLatte.Lavender,     // Purple-blue
-	"catppuccin-frappe":    CatppuccinFrappe.Mauve,       // Purple
-	"catppuccin-macchiato": CatppuccinMacchiato.Sapphire, // Blue
-	"catppuccin-mocha":     CatppuccinMocha.Peach,        // Peach (orange)
+	"green":     ui.ColorGreen,
+	"red":       ui.ColorRed,
+	"blue":      ui.ColorBlue,
+	"skyblue":   ui.ColorSkyBlue,
+	"magenta":   ui.ColorMagenta,
+	"yellow":    ui.ColorYellow,
+	"gold":      ui.ColorGold,
+	"silver":    ui.ColorSilver,
+	"white":     ui.ColorWhite,
+	"lime":      ui.ColorLime,
+	"orange":    ui.ColorOrange,
+	"violet":    ui.ColorViolet,
+	"pink":      ui.ColorPink,
+	"latte":     CatppuccinLatte.Lavender,
+	"frappe":    CatppuccinFrappe.Mauve,
+	"macchiato": CatppuccinMacchiato.Sapphire,
+	"mocha":     CatppuccinMocha.Peach,
 }
 
 var colorNames = []string{
@@ -42,10 +41,10 @@ var colorNames = []string{
 	"violet",
 	"pink",
 	"1977",
-	"catppuccin-latte",
-	"catppuccin-frappe",
-	"catppuccin-macchiato",
-	"catppuccin-mocha",
+	"latte",
+	"frappe",
+	"macchiato",
+	"mocha",
 }
 
 var (
@@ -64,6 +63,19 @@ var bgColorNames = []string{
 	"mocha-crust",    // #11111b
 	"macchiato-base", // #24273a
 	"frappe-base",    // #303446
+}
+
+// Catppuccin theme names (short form)
+var catppuccinThemes = []string{"latte", "frappe", "macchiato", "mocha"}
+
+// IsCatppuccinTheme returns true if the theme is a Catppuccin theme
+func IsCatppuccinTheme(theme string) bool {
+	for _, t := range catppuccinThemes {
+		if theme == t {
+			return true
+		}
+	}
+	return false
 }
 
 func getCPUColor() ui.Color {
@@ -286,13 +298,13 @@ func applyTheme(colorName string, lightMode bool) {
 		// Use distinct accent colors for each Catppuccin flavor
 		var primaryColor ui.Color
 		switch colorName {
-		case "catppuccin-latte":
+		case "latte":
 			primaryColor = catppuccinPalette.Lavender // Purple-blue
-		case "catppuccin-frappe":
+		case "frappe":
 			primaryColor = catppuccinPalette.Mauve // Purple
-		case "catppuccin-macchiato":
+		case "macchiato":
 			primaryColor = catppuccinPalette.Sapphire // Blue
-		case "catppuccin-mocha":
+		case "mocha":
 			primaryColor = catppuccinPalette.Peach // Peach (orange)
 		default:
 			primaryColor = catppuccinPalette.Lavender
@@ -316,7 +328,7 @@ func applyTheme(colorName string, lightMode bool) {
 		if processList != nil {
 			processList.TextStyle = ui.NewStyle(primaryColor)
 			selectedFg := catppuccinPalette.Base
-			if colorName == "catppuccin-latte" {
+			if colorName == "latte" {
 				selectedFg = catppuccinPalette.Text
 			}
 			processList.SelectedStyle = ui.NewStyle(selectedFg, primaryColor)
@@ -357,7 +369,7 @@ func GetProcessTextColor(isCurrentUser bool) string {
 			if currentConfig.Theme == "1977" {
 				return "green"
 			}
-			if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+			if IsCatppuccinTheme(currentConfig.Theme) {
 				return GetCatppuccinHex(currentConfig.Theme, "Text")
 			}
 			return currentConfig.Theme
@@ -366,7 +378,7 @@ func GetProcessTextColor(isCurrentUser bool) string {
 	}
 
 	if isCurrentUser {
-		if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
+		if IsCatppuccinTheme(currentConfig.Theme) {
 			return GetCatppuccinHex(currentConfig.Theme, "Primary")
 		}
 		switch currentConfig.Theme {
