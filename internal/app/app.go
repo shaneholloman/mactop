@@ -311,6 +311,21 @@ func renderUI() {
 	}
 }
 
+func applyInitialTheme(colorName string, setColor bool, interval int, setInterval bool) {
+	if setColor {
+		applyTheme(colorName, IsLightMode)
+	} else {
+		if currentConfig.Theme == "" {
+			currentConfig.Theme = "green"
+		}
+		applyTheme(currentConfig.Theme, IsLightMode)
+	}
+	if setInterval {
+		updateInterval = interval
+		updateIntervalText()
+	}
+}
+
 func Run() {
 	colorName, interval, setColor, setInterval := handleLegacyFlags()
 
@@ -333,6 +348,12 @@ func Run() {
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
 
 	loadConfig()
+
+	// Load saved sort column from config
+	if currentConfig.SortColumn >= 0 && currentConfig.SortColumn < len(columns) {
+		selectedColumn = currentConfig.SortColumn
+	}
+	sortReverse = currentConfig.SortReverse
 
 	flag.Parse()
 
@@ -362,18 +383,7 @@ func Run() {
 		stderrLogger.Printf("Prometheus metrics available at http://localhost:%s/metrics\n", prometheusPort)
 	}
 	setupUI()
-	if setColor {
-		applyTheme(colorName, IsLightMode)
-	} else {
-		if currentConfig.Theme == "" {
-			currentConfig.Theme = "green"
-		}
-		applyTheme(currentConfig.Theme, IsLightMode)
-	}
-	if setInterval {
-		updateInterval = interval
-		updateIntervalText()
-	}
+	applyInitialTheme(colorName, setColor, interval, setInterval)
 	currentColorName = currentConfig.Theme
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
@@ -588,6 +598,11 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(memoryMetrics.Total) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_used"}).Set(float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_total"}).Set(float64(memoryMetrics.SwapTotal) / 1024 / 1024 / 1024)
+
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
+		update1977GaugeColors()
+	}
 }
 
 func updateGPUUI(gpuMetrics GPUMetrics) {
@@ -626,6 +641,11 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 		gpuUsage.Set(0)
 	}
 	gpuFreqMHz.Set(float64(gpuMetrics.FreqMHz))
+
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
+		update1977GaugeColors()
+	}
 }
 
 func updateNetDiskUI(netdiskMetrics NetDiskMetrics) {

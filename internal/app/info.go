@@ -144,7 +144,11 @@ func buildInfoText() string {
 func getThemeColor() string {
 	themeColor := "green"
 	if currentConfig.Theme != "" {
-		themeColor = currentConfig.Theme
+		if currentConfig.Theme == "1977" {
+			themeColor = "green"
+		} else {
+			themeColor = currentConfig.Theme
+		}
 	}
 	if IsLightMode && themeColor == "white" {
 		themeColor = "black"
@@ -272,6 +276,10 @@ func renderInfoText(infoLines, asciiArt []string, layout infoLayout, themeColor 
 
 			combinedText.WriteString(fmt.Sprintf("%s%s%s%s\n", paddingStr, infoLine, strings.Repeat(" ", paddingSpaces), asciiLine))
 		} else {
+			infoLine := ""
+			if i < len(infoLines) {
+				infoLine = infoLines[i]
+			}
 			combinedText.WriteString(fmt.Sprintf("%s%s\n", paddingStr, infoLine))
 		}
 	}
