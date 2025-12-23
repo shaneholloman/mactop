@@ -10,12 +10,32 @@ import (
 // themeOrder defines the order themes cycle through with 'c' key
 // To add a new theme: add to themeOrder and colorMap (if it has a color)
 var themeOrder = []string{
-	"green", "red", "blue", "skyblue", "magenta", "yellow",
-	"gold", "silver", "white", "lime", "orange", "violet", "pink",
-	"coffee", "mint", "coral", "babyblue",
-	"indigo", "teal", "lavender", "rose",
+	"green",
+	"red",
+	"blue",
+	"skyblue",
+	"magenta",
+	"yellow",
+	"gold",
+	"silver",
+	"white",
+	"lime",
+	"orange",
+	"violet",
+	"pink",
+	"coffee",
+	"mint",
+	"coral",
+	"babyblue",
+	"indigo",
+	"teal",
+	"lavender",
+	"rose",
 	"1977", // Special theme without a single color
-	"latte", "frappe", "macchiato", "mocha",
+	"latte",
+	"frappe",
+	"macchiato",
+	"mocha",
 }
 
 // colorMap maps theme names to their primary UI color
@@ -51,10 +71,15 @@ var colorMap = map[string]ui.Color{
 // To add a new background: add to bgColorOrder and bgColorMap
 var bgColorOrder = []string{
 	"clear",
-	"mocha-base", "mocha-mantle", "mocha-crust",
-	"macchiato-base", "frappe-base",
-	"midnight", "dark-slate", "deep-space",
-	"white", "grey", "black",
+	"mocha-base",
+	"mocha-mantle",
+	"mocha-crust",
+	"macchiato-base",
+	"frappe-base",
+	"deep-space",
+	"white",
+	"grey",
+	"black",
 }
 
 // bgColorMap maps background names to their UI color
