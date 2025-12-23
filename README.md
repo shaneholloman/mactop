@@ -112,6 +112,7 @@ mactop --headless --pretty
 
 - `--headless`: Run in headless mode (no TUI, output JSON to stdout).
 - `--count`: Number of samples to collect in headless mode (0 = infinite).
+- `--pretty`: Pretty print JSON output in headless mode.
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
 - `--color` or `-c`: Set the UI color. Default is white. 
 Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', 'white', 'lime', 'orange', 'violet', and 'pink'. (-c green)
