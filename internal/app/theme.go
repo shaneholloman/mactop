@@ -173,6 +173,19 @@ func applyThemeToSparklines(color ui.Color) {
 		gpuSparklineGroup.BorderStyle.Fg = color
 		gpuSparklineGroup.TitleStyle.Fg = color
 	}
+
+	if tbNetSparklineIn != nil {
+		tbNetSparklineIn.LineColor = color
+		tbNetSparklineIn.TitleStyle = ui.NewStyle(color)
+	}
+	if tbNetSparklineOut != nil {
+		tbNetSparklineOut.LineColor = color
+		tbNetSparklineOut.TitleStyle = ui.NewStyle(color)
+	}
+	if tbNetSparklineGroup != nil {
+		tbNetSparklineGroup.BorderStyle.Fg = color
+		tbNetSparklineGroup.TitleStyle.Fg = color
+	}
 }
 
 func applyThemeToWidgets(color ui.Color, lightMode bool) {
@@ -214,6 +227,11 @@ func applyThemeToWidgets(color ui.Color, lightMode bool) {
 		mainBlock.BorderStyle.Fg = color
 		mainBlock.TitleStyle.Fg = color
 		mainBlock.TitleBottomStyle.Fg = color
+	}
+	if tbInfoParagraph != nil {
+		tbInfoParagraph.BorderStyle.Fg = color
+		tbInfoParagraph.TitleStyle.Fg = color
+		tbInfoParagraph.TextStyle = ui.NewStyle(color)
 	}
 }
 
