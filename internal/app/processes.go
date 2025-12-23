@@ -423,6 +423,8 @@ func updateProcessList() {
 	var themeColorStr string
 	if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
 		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Peach")
+	} else if IsLightMode && currentConfig.Theme == "white" {
+		themeColorStr = "black"
 	} else {
 		themeColorStr = getThemeColorName(themeColor)
 	}

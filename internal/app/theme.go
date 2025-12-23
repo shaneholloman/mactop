@@ -253,7 +253,6 @@ func applyTheme(colorName string, lightMode bool) {
 		primaryColor := catppuccinPalette.Peach
 
 		ui.Theme.Block.Title.Fg = primaryColor
-		ui.Theme.Block.Border.Fg = catppuccinPalette.Overlay2
 		ui.Theme.Block.Border.Fg = primaryColor
 		ui.Theme.Paragraph.Text.Fg = catppuccinPalette.Text
 		ui.Theme.Gauge.Label.Fg = catppuccinPalette.Subtext1
