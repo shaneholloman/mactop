@@ -20,7 +20,7 @@ var currentConfig AppConfig
 // migrateThemeName converts old 'catppuccin-*' theme names to short form
 func migrateThemeName(theme string) string {
 	oldToNew := map[string]string{
-		"catppuccin-latte":     "latte",
+		"catppuccin-latte":     "coffee",
 		"catppuccin-frappe":    "frappe",
 		"catppuccin-macchiato": "macchiato",
 		"catppuccin-mocha":     "mocha",
@@ -29,8 +29,8 @@ func migrateThemeName(theme string) string {
 		return newName
 	}
 	// Also handle any "catppuccin-" prefix generically
-	if strings.HasPrefix(theme, "catppuccin-") {
-		return strings.TrimPrefix(theme, "catppuccin-")
+	if after, ok := strings.CutPrefix(theme, "catppuccin-"); ok {
+		return after
 	}
 	return theme
 }

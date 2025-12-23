@@ -32,7 +32,6 @@ var themeOrder = []string{
 	"lavender",
 	"rose",
 	"1977", // Special theme without a single color
-	"latte",
 	"frappe",
 	"macchiato",
 	"mocha",
@@ -61,7 +60,6 @@ var colorMap = map[string]ui.Color{
 	"teal":      ui.NewRGBColor(0, 128, 128),
 	"lavender":  ui.NewRGBColor(186, 187, 241),
 	"rose":      ui.NewRGBColor(255, 0, 127),
-	"latte":     CatppuccinLatte.Lavender,
 	"frappe":    CatppuccinFrappe.Mauve,
 	"macchiato": CatppuccinMacchiato.Sapphire,
 	"mocha":     CatppuccinMocha.Peach,
@@ -104,7 +102,7 @@ var (
 )
 
 // Catppuccin theme names
-var catppuccinThemes = []string{"latte", "frappe", "macchiato", "mocha"}
+var catppuccinThemes = []string{"frappe", "macchiato", "mocha"}
 
 // IsCatppuccinTheme returns true if the theme is a Catppuccin theme
 func IsCatppuccinTheme(theme string) bool {
@@ -384,8 +382,6 @@ func applyTheme(colorName string, lightMode bool) {
 		// Use distinct accent colors for each Catppuccin flavor
 		var primaryColor ui.Color
 		switch colorName {
-		case "latte":
-			primaryColor = catppuccinPalette.Lavender // Purple-blue
 		case "frappe":
 			primaryColor = catppuccinPalette.Mauve // Purple
 		case "macchiato":

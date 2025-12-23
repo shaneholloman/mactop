@@ -450,7 +450,6 @@ func updateProcessList() {
 	if themeColorStr == "black" {
 		selectedHeaderFg = "white"
 	} else if IsCatppuccinTheme(currentConfig.Theme) {
-		// Use Base color (dark) for Catppuccin themes to contrast with bright accent colors
 		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
 	}
 
