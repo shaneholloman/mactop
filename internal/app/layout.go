@@ -58,7 +58,7 @@ func applyLayout(layoutName string) {
 		if termWidth < 93 {
 			mainBlock.TitleBottom = ""
 		} else {
-			mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+			mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | BG: b | Exit: q "
 		}
 	}
 	grid = ui.NewGrid()

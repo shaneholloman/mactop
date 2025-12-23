@@ -91,7 +91,7 @@ func setupUI() {
 	mainBlock.TitleRight = " " + version + " "
 	mainBlock.TitleAlignment = ui.AlignLeft
 	mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum, totalLayouts, currentColorName)
-	mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+	mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | BG: b | Exit: q "
 	mainBlock.TitleBottomAlignment = ui.AlignCenter
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
@@ -385,13 +385,14 @@ func Run() {
 	setupUI()
 	applyInitialTheme(colorName, setColor, interval, setInterval)
 	currentColorName = currentConfig.Theme
+	applyInitialBackground()
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
 	mainBlock.SetRect(0, 0, termWidth, termHeight)
 	if termWidth < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | BG: b | Exit: q "
 	}
 	if termWidth > 2 && termHeight > 2 {
 		grid.SetRect(1, 1, termWidth-1, termHeight-1)

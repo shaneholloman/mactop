@@ -10,6 +10,7 @@ import (
 type AppConfig struct {
 	DefaultLayout string `json:"default_layout"`
 	Theme         string `json:"theme"`
+	Background    string `json:"background,omitempty"`
 	SortColumn    *int   `json:"sort_column,omitempty"`
 	SortReverse   bool   `json:"sort_reverse"`
 }
