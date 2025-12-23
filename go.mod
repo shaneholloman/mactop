@@ -1,6 +1,6 @@
 module github.com/metaspartan/mactop/v2
 
-go 1.25.5
+go 1.25.4
 
 require (
 	github.com/metaspartan/gotui/v4 v4.2.2
