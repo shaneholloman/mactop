@@ -421,10 +421,19 @@ func updateProcessList() {
 	}
 	themeColor := processList.TextStyle.Fg
 	var themeColorStr string
-	if strings.HasPrefix(currentConfig.Theme, "catppuccin-") {
-		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Peach")
+	if IsCatppuccinTheme(currentConfig.Theme) {
+		themeColorStr = GetCatppuccinHex(currentConfig.Theme, "Primary")
 	} else if IsLightMode && currentConfig.Theme == "white" {
 		themeColorStr = "black"
+	} else if currentConfig.Theme == "1977" {
+		themeColorStr = "green"
+	} else if color, ok := colorMap[currentConfig.Theme]; ok {
+		hexStr := resolveThemeColorString(currentConfig.Theme)
+		if hexStr != currentConfig.Theme {
+			themeColorStr = hexStr
+		} else {
+			themeColorStr = getThemeColorName(color)
+		}
 	} else {
 		themeColorStr = getThemeColorName(themeColor)
 	}
@@ -440,6 +449,8 @@ func updateProcessList() {
 	selectedHeaderFg := "black"
 	if themeColorStr == "black" {
 		selectedHeaderFg = "white"
+	} else if IsCatppuccinTheme(currentConfig.Theme) {
+		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
 	}
 
 	header := buildHeader(maxWidths, themeColorStr, selectedHeaderFg)
@@ -452,10 +463,10 @@ func updateProcessList() {
 
 	if killPending {
 		processList.Title = fmt.Sprintf("CONFIRM KILL PID %d? (y/n)", killPID)
-		processList.TitleStyle = ui.NewStyle(ui.ColorRed, ui.ColorClear, ui.ModifierBold)
+		processList.TitleStyle = ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
 	} else {
 		processList.Title = "Process List (↑/↓ scroll, ←/→ select column, Enter/Space to sort, F9 to kill process)"
-		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode))
+		processList.TitleStyle = ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
 	}
 	processList.Rows = items
 }

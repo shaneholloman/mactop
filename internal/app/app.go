@@ -52,6 +52,14 @@ func setupUI() {
 	updateHelpText()
 	stderrLogger.Printf("Model: %s\nE-Core Count: %d\nP-Core Count: %d\nGPU Core Count: %d", modelName, eCoreCount, pCoreCount, gpuCoreCount)
 
+	systemInfoGauge.With(prometheus.Labels{
+		"model":          modelName,
+		"core_count":     fmt.Sprintf("%d", eCoreCount+pCoreCount),
+		"e_core_count":   fmt.Sprintf("%d", eCoreCount),
+		"p_core_count":   fmt.Sprintf("%d", pCoreCount),
+		"gpu_core_count": fmt.Sprintf("%d", gpuCoreCount),
+	}).Set(1)
+
 	processList = w.NewList()
 	processList.Title = "Process List"
 	processList.TextStyle = ui.NewStyle(ui.ColorGreen)
@@ -91,7 +99,7 @@ func setupUI() {
 	mainBlock.TitleRight = " " + version + " "
 	mainBlock.TitleAlignment = ui.AlignLeft
 	mainBlock.TitleBottomLeft = fmt.Sprintf(" %d/%d layout (%s) ", currentLayoutNum, totalLayouts, currentColorName)
-	mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+	mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
 	mainBlock.TitleBottomAlignment = ui.AlignCenter
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
@@ -336,13 +344,16 @@ func Run() {
 	defer logfile.Close()
 
 	flag.StringVar(&prometheusPort, "prometheus", "", "Port to run Prometheus metrics server on (e.g. :9090)")
+	flag.StringVar(&prometheusPort, "p", "", "Port to run Prometheus metrics server on (e.g. :9090)")
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.BoolVar(&headlessPretty, "pretty", false, "Pretty print JSON output in headless mode")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
+	flag.IntVar(&updateInterval, "i", 1000, "Update interval in milliseconds")
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")
 	flag.Bool("dump-ioreport", false, "Dump all available IOReport channels and exit")
 	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.")
+	flag.StringVar(&colorName, "c", "", "Set the UI color.")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
@@ -385,13 +396,14 @@ func Run() {
 	setupUI()
 	applyInitialTheme(colorName, setColor, interval, setInterval)
 	currentColorName = currentConfig.Theme
+	applyInitialBackground()
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
 	mainBlock.SetRect(0, 0, termWidth, termHeight)
 	if termWidth < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+		mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
 	}
 	if termWidth > 2 && termHeight > 2 {
 		grid.SetRect(1, 1, termWidth-1, termHeight-1)
@@ -520,13 +532,37 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	}
 	totalUsage /= float64(len(coreUsages))
 	cpuGauge.Percent = int(totalUsage)
-	cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
-		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
-		cpuCoreWidget.eCoreCount,
-		cpuCoreWidget.pCoreCount,
-		totalUsage,
-		formatTemp(cpuMetrics.CPUTemp),
-	)
+
+	updateCPUGaugeTitles(totalUsage, cpuMetrics)
+
+	thermalStr, _ := getThermalStateString()
+	updatePowerChartText(cpuMetrics, thermalStr)
+
+	memoryMetrics := getMemoryMetrics()
+	updateMemoryGaugeTitle(memoryMetrics)
+	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
+
+	ecoreAvg, pcoreAvg := calculateCoreAverages(coreUsages)
+	updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, coreUsages, cpuMetrics, memoryMetrics)
+
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
+		update1977GaugeColors()
+	}
+}
+
+func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
+	if isCompactLayout() {
+		cpuGauge.Title = fmt.Sprintf("CPU %.0f%% %s", totalUsage, formatTemp(cpuMetrics.CPUTemp))
+	} else {
+		cpuGauge.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
+			cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
+			cpuCoreWidget.eCoreCount,
+			cpuCoreWidget.pCoreCount,
+			totalUsage,
+			formatTemp(cpuMetrics.CPUTemp),
+		)
+	}
 	cpuCoreWidget.Title = fmt.Sprintf("%d Cores (%dE/%dP) %.2f%% (%s)",
 		cpuCoreWidget.eCoreCount+cpuCoreWidget.pCoreCount,
 		cpuCoreWidget.eCoreCount,
@@ -535,27 +571,48 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		formatTemp(cpuMetrics.CPUTemp),
 	)
 	aneUtil := float64(cpuMetrics.ANEW / 1 / 8.0 * 100)
-	aneGauge.Title = fmt.Sprintf("ANE Usage: %.2f%% @ %.2f W", aneUtil, cpuMetrics.ANEW)
+	if isCompactLayout() {
+		aneGauge.Title = fmt.Sprintf("ANE %.1fW", cpuMetrics.ANEW)
+	} else {
+		aneGauge.Title = fmt.Sprintf("ANE Usage: %.2f%% @ %.2f W", aneUtil, cpuMetrics.ANEW)
+	}
 	aneGauge.Percent = int(aneUtil)
+}
 
-	thermalStr, _ := getThermalStateString()
-
+func updatePowerChartText(cpuMetrics CPUMetrics, thermalStr string) {
 	PowerChart.Title = "Power Usage"
-	PowerChart.Text = fmt.Sprintf("CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSystem: %.2f W\nTotal: %.2f W\nThermals: %s",
-		cpuMetrics.CPUW,
-		cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
-		cpuMetrics.ANEW,
-		cpuMetrics.DRAMW,
-		cpuMetrics.SystemW,
-		cpuMetrics.PackageW,
-		thermalStr,
-	)
-	memoryMetrics := getMemoryMetrics()
-	memoryGauge.Title = fmt.Sprintf("Memory Usage: %.2f GB / %.2f GB", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024)
-	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
-	memoryGauge.TitleRight = fmt.Sprintf("Swap: %.2f/%.2f GB", float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
+	if isCompactLayout() {
+		PowerChart.Title = "Power"
+		PowerChart.Text = fmt.Sprintf("C:%.1fW G:%.1fW\nA:%.1fW D:%.1fW\nTot:%.1fW %s",
+			cpuMetrics.CPUW,
+			cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
+			cpuMetrics.ANEW,
+			cpuMetrics.DRAMW,
+			cpuMetrics.PackageW,
+			thermalStr,
+		)
+	} else {
+		PowerChart.Text = fmt.Sprintf("CPU: %.2f W | GPU: %.2f W\nANE: %.2f W | DRAM: %.2f W\nSystem: %.2f W\nTotal: %.2f W\nThermals: %s",
+			cpuMetrics.CPUW,
+			cpuMetrics.GPUW+cpuMetrics.GPUSRAMW,
+			cpuMetrics.ANEW,
+			cpuMetrics.DRAMW,
+			cpuMetrics.SystemW,
+			cpuMetrics.PackageW,
+			thermalStr,
+		)
+	}
+}
 
-	var ecoreAvg, pcoreAvg float64
+func updateMemoryGaugeTitle(memoryMetrics MemoryMetrics) {
+	if isCompactLayout() {
+		memoryGauge.Title = fmt.Sprintf("Mem %.0f/%.0fG", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024)
+	} else {
+		memoryGauge.Title = fmt.Sprintf("Memory: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB)", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
+	}
+}
+
+func calculateCoreAverages(coreUsages []float64) (ecoreAvg, pcoreAvg float64) {
 	if cpuCoreWidget.eCoreCount > 0 && len(coreUsages) >= cpuCoreWidget.eCoreCount {
 		for i := 0; i < cpuCoreWidget.eCoreCount; i++ {
 			ecoreAvg += coreUsages[i]
@@ -568,7 +625,10 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		}
 		pcoreAvg /= float64(cpuCoreWidget.pCoreCount)
 	}
+	return ecoreAvg, pcoreAvg
+}
 
+func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg float64, coreUsages []float64, cpuMetrics CPUMetrics, memoryMetrics MemoryMetrics) {
 	thermalStateVal, _ := getThermalStateString()
 	thermalStateNum := 0
 	switch thermalStateVal {
@@ -599,17 +659,30 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	memoryUsage.With(prometheus.Labels{"type": "swap_used"}).Set(float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_total"}).Set(float64(memoryMetrics.SwapTotal) / 1024 / 1024 / 1024)
 
-	// Update gauge colors with dynamic saturation if 1977 theme is active
-	if currentConfig.Theme == "1977" {
-		update1977GaugeColors()
+	// Update per-core CPU usage metrics
+	eCoreCount := cpuCoreWidget.eCoreCount
+	for i, usage := range coreUsages {
+		coreType := "p"
+		if i < eCoreCount {
+			coreType = "e"
+		}
+		cpuCoreUsage.With(prometheus.Labels{"core": fmt.Sprintf("%d", i), "type": coreType}).Set(usage)
 	}
 }
 
 func updateGPUUI(gpuMetrics GPUMetrics) {
-	if gpuMetrics.Temp > 0 {
-		gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz (%s)", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz, formatTemp(float64(gpuMetrics.Temp)))
+	if isCompactLayout() {
+		if gpuMetrics.Temp > 0 {
+			gpuGauge.Title = fmt.Sprintf("GPU %d%% %s", int(gpuMetrics.ActivePercent), formatTemp(float64(gpuMetrics.Temp)))
+		} else {
+			gpuGauge.Title = fmt.Sprintf("GPU %d%% %dMHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+		}
 	} else {
-		gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+		if gpuMetrics.Temp > 0 {
+			gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz (%s)", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz, formatTemp(float64(gpuMetrics.Temp)))
+		} else {
+			gpuGauge.Title = fmt.Sprintf("GPU Usage: %d%% @ %d MHz", int(gpuMetrics.ActivePercent), gpuMetrics.FreqMHz)
+		}
 	}
 	gpuGauge.Percent = int(gpuMetrics.ActivePercent)
 
@@ -633,7 +706,11 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 
 	gpuSparkline.Data = gpuValues
 	gpuSparkline.MaxVal = 100 // GPU usage is 0-100%
-	gpuSparklineGroup.Title = fmt.Sprintf("GPU History: %d%% (Avg: %.1f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	if isCompactLayout() {
+		gpuSparklineGroup.Title = fmt.Sprintf("GPU %d%% (%.0f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	} else {
+		gpuSparklineGroup.Title = fmt.Sprintf("GPU History: %d%% (Avg: %.1f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	}
 
 	if gpuMetrics.ActivePercent > 0 {
 		gpuUsage.Set(gpuMetrics.ActivePercent)
@@ -748,5 +825,14 @@ func updateTBNetUI(tbStats []ThunderboltNetStats) {
 			tbNetSparklineOut.Data = tbNetOutValues
 			tbNetSparklineOut.MaxVal = maxValOut * 1.1
 		}
+	}
+
+	// Update Prometheus metrics for Thunderbolt network and RDMA
+	tbNetworkSpeed.With(prometheus.Labels{"direction": "download"}).Set(totalBytesIn)
+	tbNetworkSpeed.With(prometheus.Labels{"direction": "upload"}).Set(totalBytesOut)
+	if rdmaStatus.Available {
+		rdmaAvailable.Set(1)
+	} else {
+		rdmaAvailable.Set(0)
 	}
 }

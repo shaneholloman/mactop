@@ -72,7 +72,7 @@ func updateLayout(w, h int) {
 	if w < 93 {
 		mainBlock.TitleBottom = ""
 	} else {
-		mainBlock.TitleBottom = " Help: h | Info: i | Layout: l | Color: c | Exit: q "
+		mainBlock.TitleBottom = " Info: i | Layout: l | Color: c | BG: b | Exit: q "
 	}
 	if w > 2 && h > 2 {
 		grid.SetRect(1, 1, w-1, h-1)
@@ -119,9 +119,7 @@ func handleModeKeys(key string, done chan struct{}) {
 		w, h := ui.TerminalDimensions()
 		updateLayout(w, h)
 		cycleTheme()
-		updateInfoUI()
 		renderMutex.Unlock()
-		saveConfig()
 		renderMutex.Lock()
 		updateProcessList()
 		w, h = ui.TerminalDimensions()
@@ -164,6 +162,12 @@ func handleModeKeys(key string, done chan struct{}) {
 			}
 		}
 		applyLayout(currentConfig.DefaultLayout)
+		w, h := ui.TerminalDimensions()
+		drawScreen(w, h)
+		renderMutex.Unlock()
+	case "b":
+		renderMutex.Lock()
+		cycleBackground()
 		w, h := ui.TerminalDimensions()
 		drawScreen(w, h)
 		renderMutex.Unlock()
@@ -215,7 +219,7 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	renderMutex.Unlock()
 
 	switch key {
-	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i":
+	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i", "b":
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		handleIntervalKeys(key)

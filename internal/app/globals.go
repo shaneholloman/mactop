@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	version                                                     = "v2.0.1"
+	version                                                     = "v2.0.2"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
@@ -86,6 +86,7 @@ var (
 	tbDeviceInfo     string
 	tbInfoMutex      sync.Mutex
 	infoScrollOffset int
+	currentBgIndex   int // Index for background color cycling
 )
 
 var (
@@ -177,5 +178,40 @@ var (
 			Help: "Disk I/O operations per second",
 		},
 		[]string{"operation"},
+	)
+
+	// Thunderbolt network metrics
+	tbNetworkSpeed = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_thunderbolt_network_bytes_per_sec",
+			Help: "Thunderbolt network throughput in bytes per second",
+		},
+		[]string{"direction"},
+	)
+
+	// RDMA status metric
+	rdmaAvailable = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "mactop_rdma_available",
+			Help: "RDMA availability status (1=available, 0=unavailable)",
+		},
+	)
+
+	// Per-core CPU usage metrics
+	cpuCoreUsage = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_cpu_core_usage_percent",
+			Help: "Per-core CPU usage percentage",
+		},
+		[]string{"core", "type"},
+	)
+
+	// System info metrics (static labels)
+	systemInfoGauge = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "mactop_system_info",
+			Help: "System information (value is always 1, labels contain info)",
+		},
+		[]string{"model", "core_count", "e_core_count", "p_core_count", "gpu_core_count"},
 	)
 )
