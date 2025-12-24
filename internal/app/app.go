@@ -521,6 +521,26 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	}
 	totalUsage /= float64(len(coreUsages))
 	cpuGauge.Percent = int(totalUsage)
+
+	updateCPUGaugeTitles(totalUsage, cpuMetrics)
+
+	thermalStr, _ := getThermalStateString()
+	updatePowerChartText(cpuMetrics, thermalStr)
+
+	memoryMetrics := getMemoryMetrics()
+	updateMemoryGaugeTitle(memoryMetrics)
+	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
+
+	ecoreAvg, pcoreAvg := calculateCoreAverages(coreUsages)
+	updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, cpuMetrics, memoryMetrics)
+
+	// Update gauge colors with dynamic saturation if 1977 theme is active
+	if currentConfig.Theme == "1977" {
+		update1977GaugeColors()
+	}
+}
+
+func updateCPUGaugeTitles(totalUsage float64, cpuMetrics CPUMetrics) {
 	if isCompactLayout() {
 		cpuGauge.Title = fmt.Sprintf("CPU %.0f%% %s", totalUsage, formatTemp(cpuMetrics.CPUTemp))
 	} else {
@@ -546,9 +566,9 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		aneGauge.Title = fmt.Sprintf("ANE Usage: %.2f%% @ %.2f W", aneUtil, cpuMetrics.ANEW)
 	}
 	aneGauge.Percent = int(aneUtil)
+}
 
-	thermalStr, _ := getThermalStateString()
-
+func updatePowerChartText(cpuMetrics CPUMetrics, thermalStr string) {
 	PowerChart.Title = "Power Usage"
 	if isCompactLayout() {
 		PowerChart.Title = "Power"
@@ -571,14 +591,17 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 			thermalStr,
 		)
 	}
-	memoryMetrics := getMemoryMetrics()
+}
+
+func updateMemoryGaugeTitle(memoryMetrics MemoryMetrics) {
 	if isCompactLayout() {
 		memoryGauge.Title = fmt.Sprintf("Mem %.0f/%.0fG", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024)
 	} else {
 		memoryGauge.Title = fmt.Sprintf("Memory: %.2f GB / %.2f GB (Swap: %.2f/%.2f GB)", float64(memoryMetrics.Used)/1024/1024/1024, float64(memoryMetrics.Total)/1024/1024/1024, float64(memoryMetrics.SwapUsed)/1024/1024/1024, float64(memoryMetrics.SwapTotal)/1024/1024/1024)
 	}
-	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
-	var ecoreAvg, pcoreAvg float64
+}
+
+func calculateCoreAverages(coreUsages []float64) (ecoreAvg, pcoreAvg float64) {
 	if cpuCoreWidget.eCoreCount > 0 && len(coreUsages) >= cpuCoreWidget.eCoreCount {
 		for i := 0; i < cpuCoreWidget.eCoreCount; i++ {
 			ecoreAvg += coreUsages[i]
@@ -591,7 +614,10 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 		}
 		pcoreAvg /= float64(cpuCoreWidget.pCoreCount)
 	}
+	return ecoreAvg, pcoreAvg
+}
 
+func updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg float64, cpuMetrics CPUMetrics, memoryMetrics MemoryMetrics) {
 	thermalStateVal, _ := getThermalStateString()
 	thermalStateNum := 0
 	switch thermalStateVal {
@@ -621,11 +647,6 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	memoryUsage.With(prometheus.Labels{"type": "total"}).Set(float64(memoryMetrics.Total) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_used"}).Set(float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024)
 	memoryUsage.With(prometheus.Labels{"type": "swap_total"}).Set(float64(memoryMetrics.SwapTotal) / 1024 / 1024 / 1024)
-
-	// Update gauge colors with dynamic saturation if 1977 theme is active
-	if currentConfig.Theme == "1977" {
-		update1977GaugeColors()
-	}
 }
 
 func updateGPUUI(gpuMetrics GPUMetrics) {

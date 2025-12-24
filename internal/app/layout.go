@@ -246,6 +246,45 @@ func setLayoutGrid(layoutName string) {
 				),
 			),
 		)
+	case LayoutTiny, LayoutMicro, LayoutNano, LayoutPico:
+		setCompactLayoutGrid(layoutName)
+	case LayoutInfo:
+		grid.Set(
+			ui.NewRow(1.0,
+				ui.NewCol(1.0, infoParagraph),
+			),
+		)
+	default: // LayoutDefault
+		grid.Set(
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0/2, cpuGauge),
+				ui.NewCol(1.0/2, gpuGauge),
+			),
+			ui.NewRow(2.0/4,
+				ui.NewCol(1.0/2,
+					ui.NewRow(1.0/2, aneGauge),
+					ui.NewRow(1.0/2,
+						ui.NewCol(1.0/2, PowerChart),
+						ui.NewCol(1.0/2, sparklineGroup),
+					),
+				),
+				ui.NewCol(1.0/2,
+					ui.NewRow(1.0/2, memoryGauge),
+					ui.NewRow(1.0/2,
+						ui.NewCol(1.0/3, modelText),
+						ui.NewCol(2.0/3, NetworkInfo),
+					),
+				),
+			),
+			ui.NewRow(1.0/4,
+				ui.NewCol(1.0, processList),
+			),
+		)
+	}
+}
+
+func setCompactLayoutGrid(layoutName string) {
+	switch layoutName {
 	case LayoutTiny:
 		// Compact vertical with all key metrics + mini process list
 		grid.Set(
@@ -321,38 +360,6 @@ func setLayoutGrid(layoutName string) {
 				ui.NewCol(1.0/3, PowerChart),
 				ui.NewCol(1.0/3, NetworkInfo),
 				ui.NewCol(1.0/3, modelText),
-			),
-		)
-	case LayoutInfo:
-		grid.Set(
-			ui.NewRow(1.0,
-				ui.NewCol(1.0, infoParagraph),
-			),
-		)
-	default: // LayoutDefault
-		grid.Set(
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0/2, cpuGauge),
-				ui.NewCol(1.0/2, gpuGauge),
-			),
-			ui.NewRow(2.0/4,
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, aneGauge),
-					ui.NewRow(1.0/2,
-						ui.NewCol(1.0/2, PowerChart),
-						ui.NewCol(1.0/2, sparklineGroup),
-					),
-				),
-				ui.NewCol(1.0/2,
-					ui.NewRow(1.0/2, memoryGauge),
-					ui.NewRow(1.0/2,
-						ui.NewCol(1.0/3, modelText),
-						ui.NewCol(2.0/3, NetworkInfo),
-					),
-				),
-			),
-			ui.NewRow(1.0/4,
-				ui.NewCol(1.0, processList),
 			),
 		)
 	}
