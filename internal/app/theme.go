@@ -31,6 +31,15 @@ var themeOrder = []string{
 	"teal",
 	"lavender",
 	"rose",
+	"cyan",
+	"amber",
+	"crimson",
+	"aqua",
+	"peach",
+	"caramel",
+	"mosse",
+	"sand",
+	"copper",
 	"1977", // Special theme without a single color
 	"frappe",
 	"macchiato",
@@ -60,6 +69,15 @@ var colorMap = map[string]ui.Color{
 	"teal":      ui.NewRGBColor(0, 128, 128),
 	"lavender":  ui.NewRGBColor(186, 187, 241),
 	"rose":      ui.NewRGBColor(255, 0, 127),
+	"cyan":      ui.NewRGBColor(0, 255, 255),   // Bright cyan - electric/neon
+	"amber":     ui.NewRGBColor(255, 191, 0),   // Warm amber - golden yellow
+	"crimson":   ui.NewRGBColor(220, 20, 60),   // Deep crimson red
+	"aqua":      ui.NewRGBColor(0, 255, 200),   // Bright aqua/turquoise
+	"peach":     ui.NewRGBColor(255, 180, 128), // Soft peach
+	"caramel":   ui.NewRGBColor(255, 195, 128), // Warm caramel brown
+	"mosse":     ui.NewRGBColor(173, 153, 113), // Olive mosse brown
+	"sand":      ui.NewRGBColor(237, 201, 175), // Warm sandy beige
+	"copper":    ui.NewRGBColor(184, 115, 51),  // Rich copper bronze
 	"frappe":    CatppuccinFrappe.Mauve,
 	"macchiato": CatppuccinMacchiato.Sapphire,
 	"mocha":     CatppuccinMocha.Peach,
@@ -455,9 +473,27 @@ func resolveThemeColorString(theme string) string {
 	case "coral":
 		return "#FF7F50"
 	case "lavender":
-		return "#BABBF1" // Matches RGB(186, 187, 241)
+		return "#BABBF1"
 	case "rose":
 		return "#FF007F"
+	case "cyan":
+		return "#00FFFF"
+	case "amber":
+		return "#FFBF00"
+	case "crimson":
+		return "#DC143C"
+	case "aqua":
+		return "#00FFC8"
+	case "peach":
+		return "#FFB480"
+	case "caramel":
+		return "#FFC380"
+	case "mosse":
+		return "#AD9971"
+	case "sand":
+		return "#EDC9AF"
+	case "copper":
+		return "#B87333"
 	case "lime", "orange", "violet", "pink":
 		return theme
 	case "1977":

@@ -149,26 +149,8 @@ func getThemeColor() string {
 		} else if IsCatppuccinTheme(currentConfig.Theme) {
 			themeColor = GetCatppuccinHex(currentConfig.Theme, "Primary")
 		} else {
-			switch currentConfig.Theme {
-			case "coffee":
-				themeColor = "#C1A589"
-			case "mint":
-				themeColor = "#98FF98"
-			case "coral":
-				themeColor = "#FF7F50"
-			case "babyblue":
-				themeColor = "#89CFF0"
-			case "indigo":
-				themeColor = "#4B0082"
-			case "teal":
-				themeColor = "#008080"
-			case "lavender":
-				themeColor = "#BABBF1"
-			case "rose":
-				themeColor = "#FF007F"
-			default:
-				themeColor = currentConfig.Theme
-			}
+			// Use resolveThemeColorString for all colors (handles hex codes)
+			themeColor = resolveThemeColorString(currentConfig.Theme)
 		}
 	}
 	if IsLightMode && themeColor == "white" {
