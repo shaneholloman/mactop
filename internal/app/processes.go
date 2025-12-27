@@ -556,7 +556,7 @@ func showKillModal(pid int) {
 		}
 	}
 
-	confirmModal.Title = " CONFIRM KILL "
+	confirmModal.Title = fmt.Sprintf(" CONFIRM KILL PID %d ", pid)
 	updateKillModal()
 }
 

@@ -37,9 +37,9 @@ func resolveProcessThemeColor() (string, string) {
 
 func getProcessListTitle() (string, ui.Style) {
 	if killPending {
-		return " Process List - KILL CONFIRMATION PENDING ", ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
+		return fmt.Sprintf(" Process List - KILL CONFIRMATION PENDING (PID %d) ", killPID), ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
 	} else if searchMode || searchText != "" {
-		return fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText), ui.NewStyle(ui.ColorYellow, CurrentBgColor, ui.ModifierBold)
+		return fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText), ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor, ui.ModifierBold)
 	}
 	return "Process List (↑/↓ scroll, / search, F9 kill)", ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
 }
