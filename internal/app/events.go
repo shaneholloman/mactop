@@ -53,7 +53,7 @@ func startBackgroundUpdates(done chan struct{}) {
 				select {
 				case processes := <-processMetricsChan:
 					renderMutex.Lock()
-					if processList.SelectedRow <= 1 {
+					if processList.SelectedRow <= 1 && !isFrozen {
 						lastProcesses = processes
 						if searchText != "" {
 							refreshFilteredProcesses()
@@ -122,62 +122,17 @@ func handleModeKeys(key string, done chan struct{}) {
 	case "p":
 		togglePartyMode()
 	case "c":
-		renderMutex.Lock()
-		w, h := ui.TerminalDimensions()
-		updateLayout(w, h)
-		cycleTheme()
-		renderMutex.Unlock()
-		renderMutex.Lock()
-		updateProcessList()
-		w, h = ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		handleThemeCycle()
 	case "l":
-		renderMutex.Lock()
-		cycleLayout()
-		renderMutex.Unlock()
-		saveConfig()
-		renderMutex.Lock()
-		w, h := ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		handleLayoutCycle()
 	case "h", "?":
 		toggleHelpMenu()
 	case "i":
-
-		renderMutex.Lock()
-		if currentConfig.DefaultLayout == LayoutInfo {
-			if lastActiveLayout != "" {
-				currentConfig.DefaultLayout = lastActiveLayout
-			} else {
-				currentConfig.DefaultLayout = LayoutDefault
-			}
-			for i, layout := range layoutOrder {
-				if layout == currentConfig.DefaultLayout {
-					currentLayoutNum = i
-					break
-				}
-			}
-		} else {
-			lastActiveLayout = currentConfig.DefaultLayout
-			currentConfig.DefaultLayout = LayoutInfo
-			for i, layout := range layoutOrder {
-				if layout == LayoutInfo {
-					currentLayoutNum = i
-					break
-				}
-			}
-		}
-		applyLayout(currentConfig.DefaultLayout)
-		w, h := ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		toggleInfoLayout()
 	case "b":
-		renderMutex.Lock()
-		cycleBackground()
-		w, h := ui.TerminalDimensions()
-		drawScreen(w, h)
-		renderMutex.Unlock()
+		handleBackgroundCycle()
+	case "f":
+		toggleFreeze()
 	}
 }
 
@@ -231,7 +186,7 @@ func handleKeyboardEvent(e ui.Event, done chan struct{}) {
 	renderMutex.Unlock()
 
 	switch key {
-	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i", "b":
+	case "q", "<C-c>", "r", "p", "c", "l", "h", "?", "i", "b", "f":
 		handleModeKeys(key, done)
 	case "-", "_", "+", "=":
 		handleIntervalKeys(key)

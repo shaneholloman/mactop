@@ -43,6 +43,7 @@
 - **Headless Mode**: Output JSON metrics to stdout for scripting/logging (`--headless`)
 - **JSON Formatting**: Pretty print JSON output (`--pretty`) or set collection count (`--count <n>`)
 - **Output Formats**: JSON (default), YAML, XML, and [TOON](https://github.com/toon-format/toon) (`--format <format>`)
+- **Freeze**: Pause/Resume process list updates (`f`)
 - Party Mode (Randomly cycles through colors) (`p` to toggle)
 - Optional Prometheus Metrics server (default is disabled) (`-p <port>` or `--prometheus <port>`)
 - Support for all Apple Silicon models

@@ -40,8 +40,10 @@ func getProcessListTitle() (string, ui.Style) {
 		return fmt.Sprintf(" Process List - KILL CONFIRMATION PENDING (PID %d) ", killPID), ui.NewStyle(ui.ColorRed, CurrentBgColor, ui.ModifierBold)
 	} else if searchMode || searchText != "" {
 		return fmt.Sprintf(" Search: %s_ (Esc to clear) ", searchText), ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor, ui.ModifierBold)
+	} else if isFrozen {
+		return " Process List [FROZEN] (f to resume) ", ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor, ui.ModifierBold)
 	}
-	return "Process List (↑/↓ scroll, / search, F9 kill)", ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
+	return "Process List (↑/↓ scroll, / search, f freeze, F9 kill)", ui.NewStyle(GetThemeColorWithLightMode(currentConfig.Theme, IsLightMode), CurrentBgColor)
 }
 
 func attemptKillProcess() {

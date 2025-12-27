@@ -25,6 +25,7 @@ var (
 	searchMode        bool
 	searchText        string
 	filteredProcesses []ProcessMetrics
+	isFrozen          bool
 
 	// Modal state
 	confirmModal *w.Modal
