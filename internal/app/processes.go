@@ -403,7 +403,9 @@ func buildProcessRows(processes []ProcessMetrics, maxWidths map[string]int) []st
 			truncateWithEllipsis(cmdName, maxWidths["CMD"]),
 		)
 
-		if currentUser != "" && currentUser != "root" && p.User != currentUser {
+		if i == processList.SelectedRow-1 {
+			items[i] = line
+		} else if currentUser != "" && currentUser != "root" && p.User != currentUser {
 			color := GetProcessTextColor(false)
 			items[i] = fmt.Sprintf("[%s](fg:%s)", line, color)
 		} else {

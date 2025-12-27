@@ -91,20 +91,24 @@ func handleVerticalNavigation(e ui.Event) {
 	case "<Up>", "k", "<MouseWheelUp>":
 		if processList.SelectedRow > 0 {
 			processList.SelectedRow--
+			updateProcessList()
 		}
 	case "<Down>", "j", "<MouseWheelDown>":
 		if processList.SelectedRow < len(processList.Rows)-1 {
 			processList.SelectedRow++
+			updateProcessList()
 		}
 	case "g", "<Home>":
 		if len(processList.Rows) > 1 {
 			processList.SelectedRow = 1
+			updateProcessList()
 		} else {
 			processList.SelectedRow = 0
 		}
 	case "G", "<End>":
 		if len(processList.Rows) > 0 {
 			processList.SelectedRow = len(processList.Rows) - 1
+			updateProcessList()
 		}
 	}
 }
