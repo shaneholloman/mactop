@@ -481,7 +481,8 @@ func handleSearchInput(e ui.Event) {
 		updateProcessList()
 	case "<Backspace>":
 		if len(searchText) > 0 {
-			searchText = searchText[:len(searchText)-1]
+			runes := []rune(searchText)
+			searchText = string(runes[:len(runes)-1])
 		}
 		updateFilteredProcesses()
 		updateProcessList()
