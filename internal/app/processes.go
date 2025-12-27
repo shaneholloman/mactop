@@ -386,13 +386,13 @@ func buildHeader(maxWidths map[string]int, themeColorStr, selectedHeaderFg strin
 			if sortReverse {
 				arrow = "↑"
 			}
-			header += fmt.Sprintf("[%s%s](fg:%s,mod:reverse)", colText, arrow, themeColorStr)
+			header += fmt.Sprintf("[%s%s](fg:%s,bg:%s,mod:bold)", colText, arrow, selectedHeaderFg, themeColorStr)
 		} else {
-			header += fmt.Sprintf("[%s](fg:%s)", colText, themeColorStr)
+			header += fmt.Sprintf("[%s](fg:%s,bg:%s,mod:bold)", colText, selectedHeaderFg, themeColorStr)
 		}
 
 		if i < len(columns)-1 {
-			header += "|"
+			header += fmt.Sprintf("[%s](fg:%s,bg:%s,mod:bold)", "|", selectedHeaderFg, themeColorStr)
 		}
 	}
 	return header
