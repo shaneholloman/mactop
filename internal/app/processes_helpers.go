@@ -45,9 +45,17 @@ func getProcessListTitle() (string, ui.Style) {
 }
 
 func attemptKillProcess() {
-	currentViewProcesses := lastProcesses
-	if searchText != "" && filteredProcesses != nil {
-		currentViewProcesses = filteredProcesses
+	var currentViewProcesses []ProcessMetrics
+
+	// If search criteria exists, use that (even if nil/empty), otherwise use full list
+	if searchText != "" {
+		if filteredProcesses == nil {
+			currentViewProcesses = []ProcessMetrics{}
+		} else {
+			currentViewProcesses = filteredProcesses
+		}
+	} else {
+		currentViewProcesses = lastProcesses
 	}
 
 	if len(currentViewProcesses) > 0 && processList.SelectedRow < len(currentViewProcesses)+1 {
@@ -79,7 +87,7 @@ func handleSearchClear() {
 func handleVerticalNavigation(e ui.Event) {
 	switch e.ID {
 	case "<Up>", "k", "<MouseWheelUp>":
-		if processList.SelectedRow > 0 {
+		if processList.SelectedRow > 1 {
 			processList.SelectedRow--
 		}
 	case "<Down>", "j", "<MouseWheelDown>":
@@ -87,7 +95,11 @@ func handleVerticalNavigation(e ui.Event) {
 			processList.SelectedRow++
 		}
 	case "g", "<Home>":
-		processList.SelectedRow = 0
+		if len(processList.Rows) > 1 {
+			processList.SelectedRow = 1
+		} else {
+			processList.SelectedRow = 0
+		}
 	case "G", "<End>":
 		if len(processList.Rows) > 0 {
 			processList.SelectedRow = len(processList.Rows) - 1
