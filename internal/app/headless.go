@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -56,6 +58,10 @@ func runHeadless(count int) {
 
 	printHeadlessStart(format, count)
 
+	// Setup signal handling for graceful shutdown (to close XML tags)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 	samplesCollected := 0
 
 	// First manual collection
@@ -72,17 +78,23 @@ func runHeadless(count int) {
 	ticker := time.NewTicker(time.Duration(updateInterval) * time.Millisecond)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		printHeadlessSeparator(format, count, samplesCollected)
-
-		if err := processHeadlessSample(format, tbInfo); err != nil {
-			fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
-		}
-
-		samplesCollected++
-		if count > 0 && samplesCollected >= count {
+	for {
+		select {
+		case <-sigChan:
 			printHeadlessEnd(format, count)
 			return
+		case <-ticker.C:
+			printHeadlessSeparator(format, count, samplesCollected)
+
+			if err := processHeadlessSample(format, tbInfo); err != nil {
+				fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
+			}
+
+			samplesCollected++
+			if count > 0 && samplesCollected >= count {
+				printHeadlessEnd(format, count)
+				return
+			}
 		}
 	}
 }
@@ -95,6 +107,9 @@ func printHeadlessStart(format string, count int) {
 		case "xml":
 			fmt.Print("<MactopOutputList>")
 		}
+	} else if format == "xml" {
+		// XML always needs a root element, even in infinite mode
+		fmt.Print("<MactopOutputList>")
 	}
 }
 
@@ -106,6 +121,8 @@ func printHeadlessEnd(format string, count int) {
 		case "xml":
 			fmt.Println("</MactopOutputList>")
 		}
+	} else if format == "xml" {
+		fmt.Println("</MactopOutputList>")
 	}
 }
 
@@ -118,6 +135,7 @@ func printHeadlessSeparator(format string, count int, samplesCollected int) {
 			fmt.Println("---")
 		}
 	} else if format == "yaml" {
+		// Even for infinite stream, YAML docs are best separated by ---
 		fmt.Println("---")
 	}
 }
