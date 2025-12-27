@@ -530,6 +530,12 @@ func updateKillModal() {
 
 	x := (termWidth - modalWidth) / 2
 	y := (termHeight - modalHeight) / 2
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
 	confirmModal.SetRect(x, y, x+modalWidth, y+modalHeight)
 
 	// Theme colors
