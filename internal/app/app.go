@@ -248,7 +248,7 @@ func updateHelpText() {
 			"--interval, -i: Set the update interval in milliseconds. Default is 1000.\n"+
 			"--prometheus, -p: Set and enable a Prometheus metrics port. Default is none. (e.g. --prometheus=9090)\n"+
 			"--headless: Run in headless mode (no TUI, output to stdout)\n"+
-			"--format: Output format for headless mode (json, yaml, xml, toon). Default is json.\n"+
+			"--format: Output format for headless mode (json, yaml, xml, csv, toon). Default is json.\n"+
 			"--pretty: Pretty print output in headless mode\n"+
 			"--count: Number of samples to collect in headless mode (0 = infinite)\n"+
 			"--dump-ioreport, -d: Dump all available IOReport channels and exit\n"+
@@ -374,7 +374,7 @@ func Run() {
 	flag.BoolVar(&headless, "headless", false, "Run in headless mode (no TUI, output JSON to stdout)")
 	flag.BoolVar(&headlessPretty, "pretty", false, "Pretty print output in headless mode")
 	flag.IntVar(&headlessCount, "count", 0, "Number of samples to collect in headless mode (0 = infinite)")
-	flag.StringVar(&headlessFormat, "format", "json", "Output format for headless mode: json, yaml, xml, toon")
+	flag.StringVar(&headlessFormat, "format", "json", "Output format for headless mode: json, yaml, xml, csv, toon")
 	flag.IntVar(&updateInterval, "interval", 1000, "Update interval in milliseconds")
 	flag.IntVar(&updateInterval, "i", 1000, "Update interval in milliseconds")
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")

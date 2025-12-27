@@ -1,6 +1,7 @@
 package app
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -48,7 +49,7 @@ func runHeadless(count int) {
 	// Validate format
 	format := strings.ToLower(headlessFormat)
 	switch format {
-	case "json", "yaml", "xml", "toon":
+	case "json", "yaml", "xml", "toon", "csv":
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown format: %s. Defaulting to json.\n", format)
 		format = "json"
@@ -106,11 +107,45 @@ func printHeadlessStart(format string, count int) {
 			fmt.Print("[")
 		case "xml":
 			fmt.Print("<MactopOutputList>")
+		case "csv":
+			printCSVHeader()
 		}
-	} else if format == "xml" {
-		// XML always needs a root element, even in infinite mode
-		fmt.Print("<MactopOutputList>")
+	} else {
+		switch format {
+		case "xml":
+			// XML always needs a root element, even in infinite mode
+			fmt.Print("<MactopOutputList>")
+		case "csv":
+			printCSVHeader()
+		}
 	}
+}
+
+func printCSVHeader() {
+	headers := []string{
+		"Timestamp",
+		"System_Name", "Core_Count", "E_Core_Count", "P_Core_Count", "GPU_Core_Count",
+		"CPU_Usage", "GPU_Usage",
+		"Mem_Used", "Mem_Total", "Swap_Used",
+		"Disk_Read_KB", "Disk_Write_KB",
+		"Net_In_Bytes", "Net_Out_Bytes",
+		"TB_Net_In_Bytes", "TB_Net_Out_Bytes",
+		"Total_Power", "System_Power",
+		"CPU_Temp", "GPU_Temp", "Thermal_State",
+		"RDMA_Available", "RDMA_Status",
+	}
+
+	// Add dynamic core headers
+	sysInfo := getSOCInfo()
+	for i := 0; i < sysInfo.CoreCount; i++ {
+		headers = append(headers, fmt.Sprintf("Core_%d", i))
+	}
+
+	// Add JSON blob header for complex nested data
+	headers = append(headers, "Thunderbolt_Info_JSON")
+
+	// Print CSV header line
+	fmt.Println(strings.Join(headers, ","))
 }
 
 func printHeadlessEnd(format string, count int) {
@@ -189,6 +224,54 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 		}
 	case "toon":
 		data, err = toon.Marshal(output)
+	case "csv":
+		// Use encoding/csv for correct escaping
+		writer := csv.NewWriter(os.Stdout)
+
+		var record []string
+
+		// Standard fields
+		record = append(record,
+			output.Timestamp,
+			output.SystemInfo.Name,
+			fmt.Sprintf("%d", output.SystemInfo.CoreCount),
+			fmt.Sprintf("%d", output.SystemInfo.ECoreCount),
+			fmt.Sprintf("%d", output.SystemInfo.PCoreCount),
+			fmt.Sprintf("%d", output.SystemInfo.GPUCoreCount),
+			fmt.Sprintf("%.2f", output.CPUUsage),
+			fmt.Sprintf("%.2f", output.GPUUsage),
+			fmt.Sprintf("%d", output.Memory.Used),
+			fmt.Sprintf("%d", output.Memory.Total),
+			fmt.Sprintf("%d", output.Memory.SwapUsed),
+			fmt.Sprintf("%.2f", output.NetDisk.ReadKBytesPerSec),
+			fmt.Sprintf("%.2f", output.NetDisk.WriteKBytesPerSec),
+			fmt.Sprintf("%.2f", output.NetDisk.InBytesPerSec),
+			fmt.Sprintf("%.2f", output.NetDisk.OutBytesPerSec),
+			fmt.Sprintf("%.2f", output.TBNetTotalBytesInSec),
+			fmt.Sprintf("%.2f", output.TBNetTotalBytesOutSec),
+			fmt.Sprintf("%.2f", output.SocMetrics.TotalPower),
+			fmt.Sprintf("%.2f", output.SocMetrics.SystemPower),
+			fmt.Sprintf("%.2f", output.CPUTemp),
+			fmt.Sprintf("%.2f", output.GPUTemp),
+			output.ThermalState,
+			fmt.Sprintf("%t", output.RDMAStatus.Available),
+			output.RDMAStatus.Status,
+		)
+
+		for i := 0; i < output.SystemInfo.CoreCount; i++ {
+			val := 0.0
+			if i < len(output.CoreUsages) {
+				val = output.CoreUsages[i]
+			}
+			record = append(record, fmt.Sprintf("%.2f", val))
+		}
+
+		tbJSON, _ := json.Marshal(output.ThunderboltInfo)
+		record = append(record, string(tbJSON))
+
+		writer.Write(record)
+		writer.Flush()
+		return nil
 	}
 
 	if err != nil {
