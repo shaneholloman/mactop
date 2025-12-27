@@ -53,7 +53,7 @@ func startBackgroundUpdates(done chan struct{}) {
 				select {
 				case processes := <-processMetricsChan:
 					renderMutex.Lock()
-					if processList.SelectedRow == 0 {
+					if processList.SelectedRow <= 1 {
 						lastProcesses = processes
 						updateProcessList()
 					}

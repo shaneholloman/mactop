@@ -494,6 +494,8 @@ func updateFilteredProcesses() {
 	}
 	if len(filteredProcesses) > 0 {
 		processList.SelectedRow = 1
+	} else {
+		processList.SelectedRow = 0
 	}
 }
 
