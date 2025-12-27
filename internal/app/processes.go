@@ -285,35 +285,52 @@ func getThemeColorName(themeColor ui.Color) string {
 
 func sortProcesses(processes []ProcessMetrics) {
 	sort.Slice(processes, func(i, j int) bool {
-		var result bool
+		var less bool
+		var equal bool
 
 		switch columns[selectedColumn] {
 		case "PID":
-			result = processes[i].PID < processes[j].PID
+			less = processes[i].PID < processes[j].PID
+			equal = processes[i].PID == processes[j].PID
 		case "USER":
-			result = strings.ToLower(processes[i].User) < strings.ToLower(processes[j].User)
+			u1, u2 := strings.ToLower(processes[i].User), strings.ToLower(processes[j].User)
+			less = u1 < u2
+			equal = u1 == u2
 		case "VIRT":
-			result = processes[i].VSZ > processes[j].VSZ
+			less = processes[i].VSZ > processes[j].VSZ // Descending default
+			equal = processes[i].VSZ == processes[j].VSZ
 		case "RES":
-			result = processes[i].RSS > processes[j].RSS
+			less = processes[i].RSS > processes[j].RSS // Descending default
+			equal = processes[i].RSS == processes[j].RSS
 		case "CPU":
-			result = processes[i].CPU > processes[j].CPU
+			less = processes[i].CPU > processes[j].CPU // Descending default
+			equal = processes[i].CPU == processes[j].CPU
 		case "MEM":
-			result = processes[i].Memory > processes[j].Memory
+			less = processes[i].Memory > processes[j].Memory // Descending default
+			equal = processes[i].Memory == processes[j].Memory
 		case "TIME":
 			iTime := parseTimeString(processes[i].Time)
 			jTime := parseTimeString(processes[j].Time)
-			result = iTime > jTime
+			less = iTime > jTime // Descending default
+			equal = iTime == jTime
 		case "CMD":
-			result = strings.ToLower(processes[i].Command) < strings.ToLower(processes[j].Command)
+			c1, c2 := strings.ToLower(processes[i].Command), strings.ToLower(processes[j].Command)
+			less = c1 < c2
+			equal = c1 == c2
 		default:
-			result = processes[i].CPU > processes[j].CPU
+			less = processes[i].CPU > processes[j].CPU
+			equal = processes[i].CPU == processes[j].CPU
+		}
+
+		if equal {
+			// Secondary sort by PID (always ascending) to ensure stability
+			return processes[i].PID < processes[j].PID
 		}
 
 		if sortReverse {
-			return !result
+			return !less
 		}
-		return result
+		return less
 	})
 }
 

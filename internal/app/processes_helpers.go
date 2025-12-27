@@ -129,6 +129,8 @@ func handleColumnNavigation(e ui.Event) {
 			saveConfig()
 			updateProcessList()
 		}
+	case "<Enter>", "<Space>":
+		handleSortToggle()
 	}
 }
 
