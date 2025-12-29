@@ -182,16 +182,20 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		}
 
 		cpuMetrics := CPUMetrics{
-			CPUW:      m.CPUPower,
-			GPUW:      m.GPUPower,
-			ANEW:      m.ANEPower,
-			DRAMW:     m.DRAMPower,
-			GPUSRAMW:  m.GPUSRAMPower,
-			SystemW:   systemResidual,
-			PackageW:  totalPower,
-			Throttled: throttled,
-			CPUTemp:   float64(m.CPUTemp),
-			GPUTemp:   float64(m.GPUTemp),
+			CPUW:            m.CPUPower,
+			GPUW:            m.GPUPower,
+			ANEW:            m.ANEPower,
+			DRAMW:           m.DRAMPower,
+			GPUSRAMW:        m.GPUSRAMPower,
+			SystemW:         systemResidual,
+			PackageW:        totalPower,
+			Throttled:       throttled,
+			CPUTemp:         float64(m.CPUTemp),
+			GPUTemp:         float64(m.GPUTemp),
+			EClusterActive:  int(m.EClusterActive),
+			PClusterActive:  int(m.PClusterActive),
+			EClusterFreqMHz: int(m.EClusterFreqMHz),
+			PClusterFreqMHz: int(m.PClusterFreqMHz),
 		}
 
 		gpuMetrics := GPUMetrics{

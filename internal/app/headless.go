@@ -35,6 +35,8 @@ type HeadlessOutput struct {
 	RDMAStatus            RDMAStatus         `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
 	CPUTemp               float32            `json:"cpu_temp" yaml:"cpu_temp" xml:"CPUTemp" toon:"cpu_temp"`
 	GPUTemp               float32            `json:"gpu_temp" yaml:"gpu_temp" xml:"GPUTemp" toon:"gpu_temp"`
+	ECPUUsage             []float64          `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
+	PCPUUsage             []float64          `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
 }
 
 func runHeadless(count int) {
@@ -336,6 +338,8 @@ func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
 		ThermalState:          thermalStr,
 		CPUTemp:               m.CPUTemp,
 		GPUTemp:               m.GPUTemp,
+		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
+		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 	}
 }
 
