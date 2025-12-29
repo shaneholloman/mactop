@@ -449,7 +449,7 @@ func updateProcessList() {
 
 	themeColorStr, selectedHeaderFg := resolveProcessThemeColor()
 
-	termWidth, _ := ui.TerminalDimensions()
+	termWidth, _ := GetCachedTerminalDimensions()
 	availableWidth := termWidth - 2
 	if availableWidth < 1 {
 		availableWidth = 1
@@ -524,7 +524,7 @@ func updateFilteredProcesses() {
 }
 
 func updateKillModal() {
-	termWidth, termHeight := ui.TerminalDimensions()
+	termWidth, termHeight := GetCachedTerminalDimensions()
 	modalWidth := 50
 	modalHeight := 10 // Slightly taller for the buttons provided by widget
 

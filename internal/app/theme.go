@@ -293,6 +293,30 @@ func applyThemeToSparklines(color ui.Color) {
 	}
 }
 
+func applyThemeToStepCharts(color ui.Color) {
+	if gpuHistoryChart != nil {
+		gpuHistoryChart.BorderStyle.Fg = color
+		gpuHistoryChart.BorderStyle.Bg = CurrentBgColor
+		gpuHistoryChart.TitleStyle.Fg = color
+		gpuHistoryChart.TitleStyle.Bg = CurrentBgColor
+		gpuHistoryChart.LineColors = []ui.Color{color}
+	}
+	if powerHistoryChart != nil {
+		powerHistoryChart.BorderStyle.Fg = color
+		powerHistoryChart.BorderStyle.Bg = CurrentBgColor
+		powerHistoryChart.TitleStyle.Fg = color
+		powerHistoryChart.TitleStyle.Bg = CurrentBgColor
+		powerHistoryChart.LineColors = []ui.Color{color}
+	}
+	if memoryHistoryChart != nil {
+		memoryHistoryChart.BorderStyle.Fg = color
+		memoryHistoryChart.BorderStyle.Bg = CurrentBgColor
+		memoryHistoryChart.TitleStyle.Fg = color
+		memoryHistoryChart.TitleStyle.Bg = CurrentBgColor
+		memoryHistoryChart.LineColors = []ui.Color{color}
+	}
+}
+
 func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	if processList != nil {
 		processList.TextStyle = ui.NewStyle(color, CurrentBgColor)
@@ -418,6 +442,7 @@ func applyTheme(colorName string, lightMode bool) {
 
 		applyCatppuccinThemeToGauges(catppuccinPalette)
 		applyThemeToSparklines(primaryColor)
+		applyThemeToStepCharts(primaryColor)
 		applyThemeToWidgets(primaryColor, lightMode)
 
 		if mainBlock != nil {
@@ -439,6 +464,7 @@ func applyTheme(colorName string, lightMode bool) {
 		applyThemeToGauges(color)
 	}
 	applyThemeToSparklines(color)
+	applyThemeToStepCharts(color)
 	applyThemeToWidgets(color, lightMode)
 }
 
@@ -583,6 +609,7 @@ func applyBackground(bgName string) {
 	applyBackgroundToGauges(bgColor)
 	applyBackgroundToParagraphs(bgColor)
 	applyBackgroundToSparklines(bgColor)
+	applyBackgroundToStepCharts(bgColor)
 }
 
 func applyBackgroundToBlocks(bgColor ui.Color) {
@@ -645,6 +672,17 @@ func applyBackgroundToSparklines(bgColor ui.Color) {
 			g.BackgroundColor = bgColor
 			g.BorderStyle.Bg = bgColor
 			g.TitleStyle.Bg = bgColor
+		}
+	}
+}
+
+func applyBackgroundToStepCharts(bgColor ui.Color) {
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart}
+	for _, sc := range stepCharts {
+		if sc != nil {
+			sc.BackgroundColor = bgColor
+			sc.BorderStyle.Bg = bgColor
+			sc.TitleStyle.Bg = bgColor
 		}
 	}
 }

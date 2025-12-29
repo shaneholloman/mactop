@@ -103,12 +103,20 @@ func setupUI() {
 	mainBlock.TitleBottomAlignment = ui.AlignCenter
 	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
 
-	termWidth, _ := ui.TerminalDimensions()
-	numPoints := termWidth / 2
-	numPointsGPU := termWidth / 2
+	mainBlock.TitleBottomRight = fmt.Sprintf(" -/+ %dms ", updateInterval)
+
+	termWidth, termHeight := ui.TerminalDimensions()
+	UpdateCachedTerminalDimensions(termWidth, termHeight)
+	// Use full terminal width for StepChart data buffers (old sparkline sizing used half)
+	numPoints := termWidth
+	if numPoints < 500 {
+		numPoints = 500 // Minimum buffer size
+	}
 
 	powerValues = make([]float64, numPoints)
-	gpuValues = make([]float64, numPointsGPU)
+	gpuValues = make([]float64, numPoints)
+	memoryUsedHistory = make([]float64, numPoints)
+	swapUsedHistory = make([]float64, numPoints)
 
 	sparkline = w.NewSparkline()
 	sparkline.MaxHeight = 100
@@ -135,6 +143,25 @@ func setupUI() {
 
 	tbNetSparklineGroup = w.NewSparklineGroup(tbNetSparklineIn, tbNetSparklineOut)
 	tbNetSparklineGroup.Title = "TB Net ↓0/s ↑0/s"
+
+	// StepChart widgets for History layout
+	gpuHistoryChart = w.NewStepChart()
+	gpuHistoryChart.Title = "GPU Usage History"
+	gpuHistoryChart.ShowAxes = false
+	gpuHistoryChart.ShowRightAxis = true
+	gpuHistoryChart.LineColors = []ui.Color{ui.ColorGreen}
+
+	powerHistoryChart = w.NewStepChart()
+	powerHistoryChart.Title = "Power History"
+	powerHistoryChart.ShowAxes = false
+	powerHistoryChart.ShowRightAxis = true
+	powerHistoryChart.LineColors = []ui.Color{ui.ColorYellow}
+
+	memoryHistoryChart = w.NewStepChart()
+	memoryHistoryChart.Title = "Memory/Swap History"
+	memoryHistoryChart.ShowAxes = false
+	memoryHistoryChart.ShowRightAxis = true
+	memoryHistoryChart.LineColors = []ui.Color{ui.ColorBlue, ui.ColorMagenta}
 
 	updateProcessList()
 
@@ -544,6 +571,19 @@ func updateTotalPowerChart(watts float64) {
 	sparklineGroup.Title = fmt.Sprintf("%.2f W Total (Max: %.2f W)", watts, maxPowerSeen)
 	thermalStr, _ := getThermalStateString()
 	sparkline.Title = fmt.Sprintf("Avg: %.2f W | %s", avgWatts, thermalStr)
+
+	// Update power history StepChart - use terminal width for reliable slicing
+	if powerHistoryChart != nil {
+		termWidth, _ := GetCachedTerminalDimensions()
+		visibleWidth := (termWidth / 2) - 4 // Half width, account for borders
+		if visibleWidth <= 0 || visibleWidth > len(powerValues) {
+			visibleWidth = len(powerValues)
+		}
+		visibleData := powerValues[len(powerValues)-visibleWidth:]
+		powerHistoryChart.Data = [][]float64{visibleData}
+		powerHistoryChart.DataLabels = []string{fmt.Sprintf("%.1fW", watts)}
+		powerHistoryChart.Title = fmt.Sprintf("Power History (Avg: %.1fW, Max: %.1fW)", avgWatts, maxPowerSeen)
+	}
 }
 
 func updateCPUUI(cpuMetrics CPUMetrics) {
@@ -567,7 +607,40 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 
 	memoryMetrics := getMemoryMetrics()
 	updateMemoryGaugeTitle(memoryMetrics)
-	memoryGauge.Percent = int((float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100)
+	memoryPercent := (float64(memoryMetrics.Used) / float64(memoryMetrics.Total)) * 100
+	memoryGauge.Percent = int(memoryPercent)
+
+	// Update memory used history for StepChart - use terminal width for reliable slicing
+	usedGB := float64(memoryMetrics.Used) / 1024 / 1024 / 1024
+	swapGB := float64(memoryMetrics.SwapUsed) / 1024 / 1024 / 1024
+	totalGB := float64(memoryMetrics.Total) / 1024 / 1024 / 1024
+
+	for i := 0; i < len(memoryUsedHistory)-1; i++ {
+		memoryUsedHistory[i] = memoryUsedHistory[i+1]
+		swapUsedHistory[i] = swapUsedHistory[i+1]
+	}
+	memoryUsedHistory[len(memoryUsedHistory)-1] = usedGB
+	swapUsedHistory[len(swapUsedHistory)-1] = swapGB
+
+	if memoryHistoryChart != nil {
+		termWidth, _ := GetCachedTerminalDimensions()
+		visibleWidth := (termWidth / 2) - 4 // Half width, account for borders
+		if visibleWidth <= 0 || visibleWidth > len(memoryUsedHistory) {
+			visibleWidth = len(memoryUsedHistory)
+		}
+
+		visibleMem := memoryUsedHistory[len(memoryUsedHistory)-visibleWidth:]
+		visibleSwap := swapUsedHistory[len(swapUsedHistory)-visibleWidth:]
+
+		memoryHistoryChart.Data = [][]float64{visibleMem, visibleSwap}
+		memoryHistoryChart.MaxVal = totalGB // Scale to total physical RAM
+		memoryHistoryChart.DataLabels = []string{
+			fmt.Sprintf("%.1fGB", usedGB),
+			fmt.Sprintf("%.1fGB", swapGB),
+		}
+		memoryHistoryChart.Title = fmt.Sprintf("Mem: %.1f/%.1fGB, Swap: %.1fGB",
+			usedGB, totalGB, swapGB)
+	}
 
 	ecoreAvg, pcoreAvg := calculateCoreAverages(coreUsages)
 	updateCPUPrometheusMetrics(totalUsage, ecoreAvg, pcoreAvg, coreUsages, cpuMetrics, memoryMetrics)
@@ -737,6 +810,20 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 		gpuSparklineGroup.Title = fmt.Sprintf("GPU %d%% (%.0f%%)", int(gpuMetrics.ActivePercent), avgGPU)
 	} else {
 		gpuSparklineGroup.Title = fmt.Sprintf("GPU History: %d%% (Avg: %.1f%%)", int(gpuMetrics.ActivePercent), avgGPU)
+	}
+
+	// Update GPU history StepChart - use terminal width for reliable slicing
+	if gpuHistoryChart != nil {
+		termWidth, _ := GetCachedTerminalDimensions()
+		visibleWidth := termWidth - 4 // Account for borders
+		if visibleWidth <= 0 || visibleWidth > len(gpuValues) {
+			visibleWidth = len(gpuValues)
+		}
+		visibleData := gpuValues[len(gpuValues)-visibleWidth:]
+		gpuHistoryChart.Data = [][]float64{visibleData}
+		gpuHistoryChart.MaxVal = 100 // GPU usage is 0-100%
+		gpuHistoryChart.DataLabels = []string{fmt.Sprintf("%.0f%%", gpuMetrics.ActivePercent)}
+		gpuHistoryChart.Title = fmt.Sprintf("GPU Usage History (Avg: %.1f%%)", avgGPU)
 	}
 
 	if gpuMetrics.ActivePercent > 0 {

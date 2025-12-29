@@ -32,8 +32,10 @@ github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 h1:6E+4a0GO5zZEnZ
 github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0/go.mod h1:zJYVVT2jmtg6P3p1VtQj7WsuWi/y4VnjVBn7F8KPB3I=
 github.com/mattn/go-runewidth v0.0.19 h1:v++JhqYnZuu5jSKrk9RbgF5v4CGUjqRfBm05byFGLdw=
 github.com/mattn/go-runewidth v0.0.19/go.mod h1:XBkDxAl56ILZc9knddidhrOlY5R/pDhgLpndooCuJAs=
-github.com/metaspartan/gotui/v5 v5.0.0 h1:m03sEApHyycxHs9DzAjA+R2l/9VURTtjGMMk2yPjD9I=
-github.com/metaspartan/gotui/v5 v5.0.0/go.mod h1:PasNHuk3/HQ2vQTZOmWqnAKLQtOaP0paN4yHPqDJ4q8=
+github.com/metaspartan/gotui/v5 v5.0.1 h1:rT6N5mYMS/YzCyqPLPFJURZN0sHPXYz9lFmfs7EWqlM=
+github.com/metaspartan/gotui/v5 v5.0.1/go.mod h1:PasNHuk3/HQ2vQTZOmWqnAKLQtOaP0paN4yHPqDJ4q8=
+github.com/metaspartan/gotui/v5 v5.0.2 h1:x6e+L1z5YVlbrNcefLQKrh3TVjJ0kWZVLqXv+KrtakI=
+github.com/metaspartan/gotui/v5 v5.0.2/go.mod h1:PasNHuk3/HQ2vQTZOmWqnAKLQtOaP0paN4yHPqDJ4q8=
 github.com/mitchellh/go-wordwrap v1.0.1 h1:TLuKupo69TCn6TQSyGxwI1EblZZEsQ0vMlAFQflz0v0=
 github.com/mitchellh/go-wordwrap v1.0.1/go.mod h1:R62XHJLzvMFRBbcrT7m7WgmE1eOyTSsCt+hzestvNj0=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
