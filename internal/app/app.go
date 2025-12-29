@@ -117,6 +117,7 @@ func setupUI() {
 	gpuValues = make([]float64, numPoints)
 	memoryUsedHistory = make([]float64, numPoints)
 	swapUsedHistory = make([]float64, numPoints)
+	cpuUsageHistory = make([]float64, numPoints)
 
 	sparkline = w.NewSparkline()
 	sparkline.MaxHeight = 100
@@ -162,6 +163,12 @@ func setupUI() {
 	memoryHistoryChart.ShowAxes = false
 	memoryHistoryChart.ShowRightAxis = true
 	memoryHistoryChart.LineColors = []ui.Color{ui.ColorBlue, ui.ColorMagenta}
+
+	cpuHistoryChart = w.NewStepChart()
+	cpuHistoryChart.Title = "CPU Usage History"
+	cpuHistoryChart.ShowAxes = false
+	cpuHistoryChart.ShowRightAxis = true
+	cpuHistoryChart.LineColors = []ui.Color{ui.ColorGreen}
 
 	updateProcessList()
 
@@ -600,6 +607,28 @@ func updateCPUUI(cpuMetrics CPUMetrics) {
 	totalUsage /= float64(len(coreUsages))
 	cpuGauge.Percent = int(totalUsage)
 
+	// Update CPU history StepChart
+	for i := 0; i < len(cpuUsageHistory)-1; i++ {
+		cpuUsageHistory[i] = cpuUsageHistory[i+1]
+	}
+	cpuUsageHistory[len(cpuUsageHistory)-1] = totalUsage
+
+	if cpuHistoryChart != nil {
+		termWidth, _ := GetCachedTerminalDimensions()
+		// CPU Chart is usually half width in LayoutHistoryFull
+		visibleWidth := (termWidth / 2) - 4
+		if visibleWidth <= 0 || visibleWidth > len(cpuUsageHistory) {
+			visibleWidth = len(cpuUsageHistory)
+		}
+		if visibleWidth > 0 {
+			visibleData := cpuUsageHistory[len(cpuUsageHistory)-visibleWidth:]
+			cpuHistoryChart.Data = [][]float64{visibleData}
+			cpuHistoryChart.MaxVal = 100
+			cpuHistoryChart.DataLabels = []string{fmt.Sprintf("%.0f%%", totalUsage)}
+			cpuHistoryChart.Title = fmt.Sprintf("CPU Usage History (%.1f%%)", totalUsage)
+		}
+	}
+
 	updateCPUGaugeTitles(totalUsage, cpuMetrics)
 
 	thermalStr, _ := getThermalStateString()
@@ -815,7 +844,13 @@ func updateGPUUI(gpuMetrics GPUMetrics) {
 	// Update GPU history StepChart - use terminal width for reliable slicing
 	if gpuHistoryChart != nil {
 		termWidth, _ := GetCachedTerminalDimensions()
-		visibleWidth := termWidth - 4 // Account for borders
+
+		// Determine full vs half width based on layout
+		visibleWidth := termWidth - 4
+		if currentConfig.DefaultLayout == LayoutHistoryFull {
+			visibleWidth = (termWidth / 2) - 4
+		}
+
 		if visibleWidth <= 0 || visibleWidth > len(gpuValues) {
 			visibleWidth = len(gpuValues)
 		}

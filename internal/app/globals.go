@@ -37,9 +37,10 @@ var (
 	tbNetSparklineGroup                 *w.SparklineGroup
 
 	// StepChart widgets for History layout
-	gpuHistoryChart, powerHistoryChart, memoryHistoryChart *w.StepChart
-	memoryUsedHistory                                      = make([]float64, 100)
-	swapUsedHistory                                        = make([]float64, 100)
+	gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart *w.StepChart
+	memoryUsedHistory                                                       = make([]float64, 100)
+	swapUsedHistory                                                         = make([]float64, 100)
+	cpuUsageHistory                                                         = make([]float64, 100)
 
 	cpuCoreWidget                 *CPUCoreWidget
 	powerValues                   = make([]float64, 35)

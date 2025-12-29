@@ -294,26 +294,15 @@ func applyThemeToSparklines(color ui.Color) {
 }
 
 func applyThemeToStepCharts(color ui.Color) {
-	if gpuHistoryChart != nil {
-		gpuHistoryChart.BorderStyle.Fg = color
-		gpuHistoryChart.BorderStyle.Bg = CurrentBgColor
-		gpuHistoryChart.TitleStyle.Fg = color
-		gpuHistoryChart.TitleStyle.Bg = CurrentBgColor
-		gpuHistoryChart.LineColors = []ui.Color{color}
-	}
-	if powerHistoryChart != nil {
-		powerHistoryChart.BorderStyle.Fg = color
-		powerHistoryChart.BorderStyle.Bg = CurrentBgColor
-		powerHistoryChart.TitleStyle.Fg = color
-		powerHistoryChart.TitleStyle.Bg = CurrentBgColor
-		powerHistoryChart.LineColors = []ui.Color{color}
-	}
-	if memoryHistoryChart != nil {
-		memoryHistoryChart.BorderStyle.Fg = color
-		memoryHistoryChart.BorderStyle.Bg = CurrentBgColor
-		memoryHistoryChart.TitleStyle.Fg = color
-		memoryHistoryChart.TitleStyle.Bg = CurrentBgColor
-		memoryHistoryChart.LineColors = []ui.Color{color}
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart}
+	for _, sc := range stepCharts {
+		if sc != nil {
+			sc.BorderStyle.Fg = color
+			sc.BorderStyle.Bg = CurrentBgColor
+			sc.TitleStyle.Fg = color
+			sc.TitleStyle.Bg = CurrentBgColor
+			sc.LineColors = []ui.Color{color}
+		}
 	}
 }
 
@@ -677,7 +666,7 @@ func applyBackgroundToSparklines(bgColor ui.Color) {
 }
 
 func applyBackgroundToStepCharts(bgColor ui.Color) {
-	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart}
+	stepCharts := []*w.StepChart{gpuHistoryChart, powerHistoryChart, memoryHistoryChart, cpuHistoryChart}
 	for _, sc := range stepCharts {
 		if sc != nil {
 			sc.BackgroundColor = bgColor
