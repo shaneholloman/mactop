@@ -130,6 +130,9 @@ static void loadCpuFrequencies() {
           // safe)
           pData = (CFDataRef)CFDictionaryGetValue(
               properties, CFSTR("voltage-states-sram")); // fallback?
+          if (pData != NULL) {
+            parseFreqData(pData, g_pcpu_freqs, &g_pcpu_freq_count);
+          }
         }
 
         CFRelease(properties);
@@ -745,6 +748,9 @@ PowerMetrics samplePowerMetrics(int durationMs) {
 
           if (totalTime > 0) {
             metrics.gpuActive = (double)activeTime / (double)totalTime * 100.0;
+          }
+          if (activeTime > 0 && g_gpu_freq_count > 0) {
+            metrics.gpuFreqMHz = (int)(weightedFreq / activeTime);
           }
         }
       }
