@@ -25,6 +25,8 @@ type HeadlessOutput struct {
 	Memory                MemoryMetrics      `json:"memory" yaml:"memory" xml:"Memory" toon:"memory"`
 	NetDisk               NetDiskMetrics     `json:"net_disk" yaml:"net_disk" xml:"NetDisk" toon:"net_disk"`
 	CPUUsage              float64            `json:"cpu_usage" yaml:"cpu_usage" xml:"CPUUsage" toon:"cpu_usage"`
+	ECPUUsage             []float64          `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
+	PCPUUsage             []float64          `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
 	GPUUsage              float64            `json:"gpu_usage" yaml:"gpu_usage" xml:"GPUUsage" toon:"gpu_usage"`
 	CoreUsages            []float64          `json:"core_usages" yaml:"core_usages" xml:"CoreUsages" toon:"core_usages"`
 	SystemInfo            SystemInfo         `json:"system_info" yaml:"system_info" xml:"SystemInfo" toon:"system_info"`
@@ -33,10 +35,6 @@ type HeadlessOutput struct {
 	TBNetTotalBytesInSec  float64            `json:"tb_net_total_bytes_in_per_sec" yaml:"tb_net_total_bytes_in_per_sec" xml:"TBNetTotalBytesInSec" toon:"tb_net_total_bytes_in_per_sec"`
 	TBNetTotalBytesOutSec float64            `json:"tb_net_total_bytes_out_per_sec" yaml:"tb_net_total_bytes_out_per_sec" xml:"TBNetTotalBytesOutSec" toon:"tb_net_total_bytes_out_per_sec"`
 	RDMAStatus            RDMAStatus         `json:"rdma_status" yaml:"rdma_status" xml:"RDMAStatus" toon:"rdma_status"`
-	CPUTemp               float32            `json:"cpu_temp" yaml:"cpu_temp" xml:"CPUTemp" toon:"cpu_temp"`
-	GPUTemp               float32            `json:"gpu_temp" yaml:"gpu_temp" xml:"GPUTemp" toon:"gpu_temp"`
-	ECPUUsage             []float64          `json:"ecpu_usage" yaml:"ecpu_usage" xml:"ECPUUsage" toon:"ecpu_usage"`
-	PCPUUsage             []float64          `json:"pcpu_usage" yaml:"pcpu_usage" xml:"PCPUUsage" toon:"pcpu_usage"`
 }
 
 func runHeadless(count int) {
@@ -127,7 +125,7 @@ func printCSVHeader() {
 	headers := []string{
 		"Timestamp",
 		"System_Name", "Core_Count", "E_Core_Count", "P_Core_Count", "GPU_Core_Count",
-		"CPU_Usage", "GPU_Usage",
+		"CPU_Usage", "ECPU_Usage", "PCPU_Usage", "GPU_Usage",
 		"Mem_Used", "Mem_Total", "Swap_Used",
 		"Disk_Read_KB", "Disk_Write_KB",
 		"Net_In_Bytes", "Net_Out_Bytes",
@@ -241,6 +239,8 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 			fmt.Sprintf("%d", output.SystemInfo.PCoreCount),
 			fmt.Sprintf("%d", output.SystemInfo.GPUCoreCount),
 			fmt.Sprintf("%.2f", output.CPUUsage),
+			fmt.Sprintf("%.2f", output.ECPUUsage),
+			fmt.Sprintf("%.2f", output.PCPUUsage),
 			fmt.Sprintf("%.2f", output.GPUUsage),
 			fmt.Sprintf("%d", output.Memory.Used),
 			fmt.Sprintf("%d", output.Memory.Total),
@@ -253,8 +253,6 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 			fmt.Sprintf("%.2f", output.TBNetTotalBytesOutSec),
 			fmt.Sprintf("%.2f", output.SocMetrics.TotalPower),
 			fmt.Sprintf("%.2f", output.SocMetrics.SystemPower),
-			fmt.Sprintf("%.2f", output.CPUTemp),
-			fmt.Sprintf("%.2f", output.GPUTemp),
 			output.ThermalState,
 			fmt.Sprintf("%t", output.RDMAStatus.Available),
 			output.RDMAStatus.Status,
@@ -328,6 +326,8 @@ func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
 		Memory:                mem,
 		NetDisk:               netDisk,
 		CPUUsage:              cpuUsage,
+		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
+		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 		GPUUsage:              m.GPUActive,
 		CoreUsages:            percentages,
 		SystemInfo:            getSOCInfo(),
@@ -336,10 +336,6 @@ func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
 		TBNetTotalBytesOutSec: tbNetTotalOut,
 		RDMAStatus:            CheckRDMAAvailable(),
 		ThermalState:          thermalStr,
-		CPUTemp:               m.CPUTemp,
-		GPUTemp:               m.GPUTemp,
-		ECPUUsage:             []float64{float64(m.EClusterFreqMHz), m.EClusterActive},
-		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 	}
 }
 

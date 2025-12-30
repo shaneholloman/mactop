@@ -179,7 +179,10 @@ func (w *CPUCoreWidget) calculateLayout(availableWidth, availableHeight, totalCo
 
 func (w *CPUCoreWidget) drawCore(buf *ui.Buffer, x, y, barWidth, index int, usage float64, themeColor ui.Color) {
 	labelWidth := 3
-	label := w.labels[index]
+	label := fmt.Sprintf("%d", index)
+	if index < len(w.labels) {
+		label = w.labels[index]
+	}
 	if len(label) < labelWidth {
 		label = fmt.Sprintf("%-*s", labelWidth, label)
 	}
