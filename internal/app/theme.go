@@ -309,8 +309,8 @@ func applyThemeToStepCharts(color ui.Color) {
 func applyThemeToWidgets(color ui.Color, lightMode bool) {
 	if processList != nil {
 		processList.TextStyle = ui.NewStyle(color, CurrentBgColor)
-		selectedFg := ui.ColorBlack
-		if lightMode && color == ui.ColorBlack {
+		selectedFg := ui.NewRGBColor(2, 2, 2)
+		if lightMode && color == ui.NewRGBColor(2, 2, 2) {
 			selectedFg = ui.ColorWhite
 		}
 		processList.SelectedStyle = ui.NewStyle(selectedFg, color)
@@ -390,10 +390,10 @@ func applyTheme(colorName string, lightMode bool) {
 	currentConfig.Theme = colorName
 
 	if lightMode {
-		BracketColor = ui.ColorBlack
-		SecondaryTextColor = ui.ColorBlack
+		BracketColor = ui.NewRGBColor(2, 2, 2)
+		SecondaryTextColor = ui.NewRGBColor(2, 2, 2)
 		if color == ui.ColorWhite {
-			color = ui.ColorBlack
+			color = ui.NewRGBColor(2, 2, 2)
 		}
 	} else {
 		BracketColor = ui.ColorWhite
@@ -468,7 +468,7 @@ func GetThemeColor(colorName string) ui.Color {
 func GetThemeColorWithLightMode(colorName string, lightMode bool) ui.Color {
 	color := GetThemeColor(colorName)
 	if lightMode && color == ui.ColorWhite {
-		return ui.ColorBlack
+		return ui.NewRGBColor(2, 2, 2)
 	}
 	return color
 }
@@ -506,8 +506,8 @@ func GetProcessTextColor(isCurrentUser bool) string {
 	if IsLightMode {
 		if isCurrentUser {
 			color := GetThemeColorWithLightMode(currentConfig.Theme, true)
-			if color == ui.ColorBlack {
-				return "black"
+			if color == ui.NewRGBColor(2, 2, 2) {
+				return "#020202"
 			}
 			if IsCatppuccinTheme(currentConfig.Theme) {
 				return GetCatppuccinHex(currentConfig.Theme, "Text")
