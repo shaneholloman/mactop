@@ -7,7 +7,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/shirou/gopsutil/v4/disk"
-	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
 )
 
@@ -257,18 +256,16 @@ func collectProcessMetrics(done chan struct{}, processMetricsChan chan []Process
 }
 
 func getMemoryMetrics() MemoryMetrics {
-	v, _ := mem.VirtualMemory()
-	s, _ := mem.SwapMemory()
-	totalMemory := v.Total
-	usedMemory := v.Used
-	availableMemory := v.Available
-	swapTotal := s.Total
-	swapUsed := s.Used
+	native, err := GetNativeMemoryMetrics()
+	if err != nil {
+		stderrLogger.Printf("Error getting native memory metrics: %v\n", err)
+		return MemoryMetrics{}
+	}
 	return MemoryMetrics{
-		Total:     totalMemory,
-		Used:      usedMemory,
-		Available: availableMemory,
-		SwapTotal: swapTotal,
-		SwapUsed:  swapUsed,
+		Total:     native.Total,
+		Used:      native.Used,
+		Available: native.Available,
+		SwapTotal: native.SwapTotal,
+		SwapUsed:  native.SwapUsed,
 	}
 }
