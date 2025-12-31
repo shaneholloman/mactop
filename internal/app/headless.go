@@ -65,8 +65,11 @@ func runHeadless(count int) {
 
 	samplesCollected := 0
 
+	// Cache SystemInfo since it doesn't change
+	cachedHeadlessSysInfo := getSOCInfo()
+
 	// First manual collection
-	if err := processHeadlessSample(format, tbInfo); err != nil {
+	if err := processHeadlessSample(format, tbInfo, cachedHeadlessSysInfo); err != nil {
 		fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
 	}
 	samplesCollected++
@@ -87,7 +90,7 @@ func runHeadless(count int) {
 		case <-ticker.C:
 			printHeadlessSeparator(format, count, samplesCollected)
 
-			if err := processHeadlessSample(format, tbInfo); err != nil {
+			if err := processHeadlessSample(format, tbInfo, cachedHeadlessSysInfo); err != nil {
 				fmt.Fprintf(os.Stderr, "Error formatting output: %v\n", err)
 			}
 
@@ -202,8 +205,8 @@ func performHeadlessWarmup() *ThunderboltOutput {
 	return tbInfo
 }
 
-func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
-	output := collectHeadlessData(tbInfo)
+func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo SystemInfo) error {
+	output := collectHeadlessData(tbInfo, sysInfo)
 	var data []byte
 	var err error
 
@@ -286,7 +289,7 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput) error {
 	return nil
 }
 
-func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
+func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) HeadlessOutput {
 	m := sampleSocMetrics(updateInterval)
 	mem := getMemoryMetrics()
 	netDisk := getNetDiskMetrics()
@@ -334,7 +337,7 @@ func collectHeadlessData(tbInfo *ThunderboltOutput) HeadlessOutput {
 		PCPUUsage:             []float64{float64(m.PClusterFreqMHz), m.PClusterActive},
 		GPUUsage:              m.GPUActive,
 		CoreUsages:            percentages,
-		SystemInfo:            getSOCInfo(),
+		SystemInfo:            sysInfo,
 		ThunderboltInfo:       tbInfo,
 		TBNetTotalBytesInSec:  tbNetTotalIn,
 		TBNetTotalBytesOutSec: tbNetTotalOut,
