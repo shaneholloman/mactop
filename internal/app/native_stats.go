@@ -135,6 +135,66 @@ int get_disk_stats(disk_stat_t *stats, int max_stats) {
 
     return count;
 }
+
+// CoreType: 0 = unknown, 1 = E-core, 2 = P-core
+typedef struct {
+    int cpu_id;
+    int core_type;  // 0=unknown, 1=E, 2=P
+} core_info_t;
+
+// Get core topology from IORegistry - works on all M-series chips
+int get_core_topology(core_info_t *cores, int max_cores) {
+    mach_port_t main_port = get_io_main_port();
+    if (main_port == MACH_PORT_NULL) {
+        return -1;
+    }
+
+    CFMutableDictionaryRef match = IOServiceMatching("IOPlatformDevice");
+    io_iterator_t iter;
+    kern_return_t kr = IOServiceGetMatchingServices(main_port, match, &iter);
+    if (kr != kIOReturnSuccess) {
+        return -1;
+    }
+
+    int count = 0;
+    io_registry_entry_t entry;
+
+    while ((entry = IOIteratorNext(iter)) && count < max_cores) {
+        CFMutableDictionaryRef properties = NULL;
+        if (IORegistryEntryCreateCFProperties(entry, &properties, kCFAllocatorDefault, 0) == kIOReturnSuccess && properties) {
+            // Check if this is a CPU device (name starts with "cpu")
+            CFDataRef nameData = (CFDataRef)CFDictionaryGetValue(properties, CFSTR("name"));
+            if (nameData && CFGetTypeID(nameData) == CFDataGetTypeID()) {
+                const char *name = (const char *)CFDataGetBytePtr(nameData);
+                if (name && strncmp(name, "cpu", 3) == 0) {
+                    // Extract CPU ID from name (e.g., "cpu0" -> 0)
+                    int cpu_id = atoi(name + 3);
+
+                    // Get cluster-type property
+                    CFDataRef clusterData = (CFDataRef)CFDictionaryGetValue(properties, CFSTR("cluster-type"));
+                    if (clusterData && CFGetTypeID(clusterData) == CFDataGetTypeID()) {
+                        const char *cluster_type = (const char *)CFDataGetBytePtr(clusterData);
+
+                        cores[count].cpu_id = cpu_id;
+                        if (cluster_type && cluster_type[0] == 'E') {
+                            cores[count].core_type = 1; // E-core
+                        } else if (cluster_type && cluster_type[0] == 'P') {
+                            cores[count].core_type = 2; // P-core
+                        } else {
+                            cores[count].core_type = 0; // Unknown
+                        }
+                        count++;
+                    }
+                }
+            }
+            CFRelease(properties);
+        }
+        IOObjectRelease(entry);
+    }
+    IOObjectRelease(iter);
+
+    return count;
+}
 */
 import "C"
 import (
@@ -455,4 +515,93 @@ func GetNativeHostInfo() (NativeHostInfo, error) {
 		Uptime:        uptime,
 		BootTime:      bootTime,
 	}, nil
+}
+
+// CoreType represents the type of CPU core
+type CoreType int
+
+const (
+	CoreTypeUnknown CoreType = 0
+	CoreTypeE       CoreType = 1 // Efficiency core
+	CoreTypeP       CoreType = 2 // Performance core
+)
+
+// CoreTopologyEntry represents a single CPU core's topology information
+type CoreTopologyEntry struct {
+	CPUID    int
+	CoreType CoreType
+}
+
+// GetCoreTopology returns the core topology detected from IORegistry.
+// This is the authoritative source for E-core vs P-core identification
+// and works across all M-series chips without hardcoding.
+func GetCoreTopology() ([]CoreTopologyEntry, error) {
+	maxCores := 128 // Support up to 128 cores (future-proofing)
+	cores := make([]C.core_info_t, maxCores)
+
+	count := C.get_core_topology(&cores[0], C.int(maxCores))
+	if count < 0 {
+		return nil, fmt.Errorf("failed to get core topology")
+	}
+
+	result := make([]CoreTopologyEntry, count)
+	for i := 0; i < int(count); i++ {
+		result[i] = CoreTopologyEntry{
+			CPUID:    int(cores[i].cpu_id),
+			CoreType: CoreType(cores[i].core_type),
+		}
+	}
+
+	// Sort by CPU ID to ensure consistent ordering
+	for i := 0; i < len(result)-1; i++ {
+		for j := i + 1; j < len(result); j++ {
+			if result[i].CPUID > result[j].CPUID {
+				result[i], result[j] = result[j], result[i]
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// BuildCoreLabels creates the correct E/P labels based on dynamic topology detection.
+// Returns: labels (sorted E first, then P), eCount, pCount, and cpuIndexMap (maps display index -> hardware CPU index)
+func BuildCoreLabels() ([]string, int, int, []int) {
+	topology, err := GetCoreTopology()
+	if err != nil || len(topology) == 0 {
+		// Fallback to sysctl-based counts (old behavior)
+		return nil, 0, 0, nil
+	}
+
+	// Separate E-cores and P-cores
+	var eCores []CoreTopologyEntry
+	var pCores []CoreTopologyEntry
+
+	for _, entry := range topology {
+		switch entry.CoreType {
+		case CoreTypeE:
+			eCores = append(eCores, entry)
+		case CoreTypeP:
+			pCores = append(pCores, entry)
+		}
+	}
+
+	// Build sorted list: E-cores first, then P-cores
+	totalCores := len(eCores) + len(pCores)
+	labels := make([]string, totalCores)
+	cpuIndexMap := make([]int, totalCores) // maps display index -> hardware CPU index
+
+	idx := 0
+	for i, entry := range eCores {
+		labels[idx] = fmt.Sprintf("E%d", i)
+		cpuIndexMap[idx] = entry.CPUID
+		idx++
+	}
+	for i, entry := range pCores {
+		labels[idx] = fmt.Sprintf("P%d", i)
+		cpuIndexMap[idx] = entry.CPUID
+		idx++
+	}
+
+	return labels, len(eCores), len(pCores), cpuIndexMap
 }

@@ -80,6 +80,7 @@ type CPUCoreWidget struct {
 	labels                 []string
 	eCoreCount, pCoreCount int
 	modelName              string
+	cpuIndexMap            []int // maps display index -> hardware CPU index
 }
 
 func NewEventThrottler(gracePeriod time.Duration) *EventThrottler {
@@ -113,32 +114,58 @@ func (e *EventThrottler) Notify() {
 }
 
 func NewCPUCoreWidget(modelInfo SystemInfo) *CPUCoreWidget {
-	eCoreCount := modelInfo.ECoreCount
-	pCoreCount := modelInfo.PCoreCount
 	modelName := modelInfo.Name
-	totalCores := eCoreCount + pCoreCount
 
-	labels := make([]string, totalCores)
-	for i := 0; i < eCoreCount; i++ {
-		labels[i] = fmt.Sprintf("E%d", i)
+	// Use dynamic core topology detection from IORegistry
+	labels, eCount, pCount, cpuIndexMap := BuildCoreLabels()
+
+	if labels == nil || len(labels) == 0 {
+		// Fallback to sysctl-based counts (old behavior)
+		eCoreCount := modelInfo.ECoreCount
+		pCoreCount := modelInfo.PCoreCount
+		totalCores := eCoreCount + pCoreCount
+
+		labels = make([]string, totalCores)
+		cpuIndexMap = make([]int, totalCores)
+		for i := 0; i < eCoreCount; i++ {
+			labels[i] = fmt.Sprintf("E%d", i)
+			cpuIndexMap[i] = i // 1:1 mapping for fallback
+		}
+		for i := 0; i < pCoreCount; i++ {
+			labels[i+eCoreCount] = fmt.Sprintf("P%d", i)
+			cpuIndexMap[i+eCoreCount] = i + eCoreCount
+		}
+		eCount = eCoreCount
+		pCount = pCoreCount
 	}
-	for i := 0; i < pCoreCount; i++ {
-		labels[i+eCoreCount] = fmt.Sprintf("P%d", i)
-	}
+
+	totalCores := len(labels)
 
 	return &CPUCoreWidget{
-		Block:      ui.NewBlock(),
-		cores:      make([]float64, totalCores),
-		labels:     labels,
-		eCoreCount: eCoreCount,
-		pCoreCount: pCoreCount,
-		modelName:  modelName,
+		Block:       ui.NewBlock(),
+		cores:       make([]float64, totalCores),
+		labels:      labels,
+		eCoreCount:  eCount,
+		pCoreCount:  pCount,
+		modelName:   modelName,
+		cpuIndexMap: cpuIndexMap,
 	}
 }
 
 func (w *CPUCoreWidget) UpdateUsage(usage []float64) {
-	w.cores = make([]float64, len(usage))
-	copy(w.cores, usage)
+	// Remap usage data from hardware order to display order (E cores first, then P)
+	if w.cpuIndexMap != nil && len(w.cpuIndexMap) > 0 {
+		w.cores = make([]float64, len(w.cpuIndexMap))
+		for displayIdx, cpuIdx := range w.cpuIndexMap {
+			if cpuIdx < len(usage) {
+				w.cores[displayIdx] = usage[cpuIdx]
+			}
+		}
+	} else {
+		// No remapping needed
+		w.cores = make([]float64, len(usage))
+		copy(w.cores, usage)
+	}
 }
 
 func (w *CPUCoreWidget) calculateLayout(availableWidth, availableHeight, totalCores int) (int, int, []int, []int) {
