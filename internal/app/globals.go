@@ -55,7 +55,7 @@ var (
 	lastCPUTimes                  []CPUUsage
 	firstRun                      = true
 	sortReverse                   = false
-	columns                       = []string{"PID", "USER", "VIRT", "RES", "CPU", "MEM", "TIME", "CMD"}
+	columns                       = []string{"PID", "USER", "VIRT", "RES", "CPU", "GPU", "MEM", "TIME", "CMD"}
 	selectedColumn                = 4
 	maxPowerSeen                  = 0.1
 	gpuValues                     = make([]float64, 100)
@@ -88,12 +88,16 @@ var (
 	lastGPUMetrics     GPUMetrics
 	lastNetDiskMetrics NetDiskMetrics
 	lastActiveLayout   string = "default"
-	cpuMetricsChan            = make(chan CPUMetrics, 1)
-	gpuMetricsChan            = make(chan GPUMetrics, 1)
-	netdiskMetricsChan        = make(chan NetDiskMetrics, 1)
-	tbNetStatsChan            = make(chan []ThunderboltNetStats, 1)
-	processMetricsChan        = make(chan []ProcessMetrics, 1)
-	ticker             *time.Ticker
+	// Per-process GPU time tracking
+	lastGPUProcessStats     map[int]uint64
+	lastGPUProcessStatsTime time.Time
+	gpuProcessStatsMutex    sync.Mutex
+	cpuMetricsChan          = make(chan CPUMetrics, 1)
+	gpuMetricsChan          = make(chan GPUMetrics, 1)
+	netdiskMetricsChan      = make(chan NetDiskMetrics, 1)
+	tbNetStatsChan          = make(chan []ThunderboltNetStats, 1)
+	processMetricsChan      = make(chan []ProcessMetrics, 1)
+	ticker                  *time.Ticker
 
 	cachedHostname      string
 	cachedCurrentUser   string

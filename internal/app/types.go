@@ -54,7 +54,7 @@ type GPUMetrics struct {
 
 type ProcessMetrics struct {
 	PID                                      int
-	CPU, LastTime, Memory                    float64
+	CPU, LastTime, Memory, GPU               float64 // GPU is ms/s of GPU time
 	VSZ, RSS                                 int64
 	User, TTY, State, Started, Time, Command string
 	LastUpdated                              time.Time
