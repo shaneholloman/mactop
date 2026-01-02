@@ -19,6 +19,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func safeFloat64At(slice []float64, index int) float64 {
+	if index >= 0 && index < len(slice) {
+		return slice[index]
+	}
+	return 0.0
+}
+
 type HeadlessOutput struct {
 	Timestamp             string             `json:"timestamp" yaml:"timestamp" xml:"Timestamp" toon:"timestamp"`
 	SocMetrics            SocMetrics         `json:"soc_metrics" yaml:"soc_metrics" xml:"SocMetrics" toon:"soc_metrics"`
@@ -242,10 +249,10 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 			fmt.Sprintf("%d", output.SystemInfo.PCoreCount),
 			fmt.Sprintf("%d", output.SystemInfo.GPUCoreCount),
 			fmt.Sprintf("%.2f", output.CPUUsage),
-			fmt.Sprintf("%.2f", output.ECPUUsage[0]),
-			fmt.Sprintf("%.2f", output.ECPUUsage[1]),
-			fmt.Sprintf("%.2f", output.PCPUUsage[0]),
-			fmt.Sprintf("%.2f", output.PCPUUsage[1]),
+			fmt.Sprintf("%.2f", safeFloat64At(output.ECPUUsage, 0)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.ECPUUsage, 1)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 0)),
+			fmt.Sprintf("%.2f", safeFloat64At(output.PCPUUsage, 1)),
 			fmt.Sprintf("%.2f", output.GPUUsage),
 			fmt.Sprintf("%d", output.Memory.Used),
 			fmt.Sprintf("%d", output.Memory.Total),
