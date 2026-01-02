@@ -240,7 +240,10 @@ func updateProcessGPUMetrics(processes []ProcessMetrics, now time.Time) {
 		}
 	}
 
+	renderMutex.Lock()
 	systemGpuPercent := lastGPUMetrics.ActivePercent
+	renderMutex.Unlock()
+
 	rawTotalPercent := totalRawGpuMs / 10.0
 
 	scaleFactor := 1.0
