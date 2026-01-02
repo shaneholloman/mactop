@@ -161,7 +161,7 @@ func collectNetDiskMetrics(done chan struct{}, netdiskMetricsChan chan NetDiskMe
 	}
 }
 
-func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats) {
+func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetricsChan chan GPUMetrics, tbNetStatsChan chan []ThunderboltNetStats, triggerProcessCollectionChan chan struct{}) {
 	for {
 		start := time.Now()
 
@@ -224,6 +224,11 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 		default:
 		}
 
+		select {
+		case triggerProcessCollectionChan <- struct{}{}:
+		default:
+		}
+
 		elapsed := time.Since(start)
 		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
 		if sleepTime > 0 {
@@ -235,25 +240,17 @@ func collectMetrics(done chan struct{}, cpumetricsChan chan CPUMetrics, gpumetri
 	}
 }
 
-func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics) {
+func collectProcessMetrics(done chan struct{}, processMetricsChan chan []ProcessMetrics, triggerChan chan struct{}) {
 	for {
-		start := time.Now()
-
 		select {
 		case <-done:
 			return
-		default:
+		case <-triggerChan:
 			if processes, err := getProcessList(); err == nil {
 				processMetricsChan <- processes
 			} else {
 				stderrLogger.Printf("Error getting process list: %v\n", err)
 			}
-		}
-
-		elapsed := time.Since(start)
-		sleepTime := time.Duration(updateInterval)*time.Millisecond - elapsed
-		if sleepTime > 0 {
-			time.Sleep(sleepTime)
 		}
 	}
 }

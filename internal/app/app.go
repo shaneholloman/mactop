@@ -508,8 +508,10 @@ func Run() {
 
 	netdiskMetricsChan <- getNetDiskMetrics()
 
-	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan)
-	go collectProcessMetrics(done, processMetricsChan)
+	triggerProcessCollectionChan := make(chan struct{}, 1)
+
+	go collectMetrics(done, cpuMetricsChan, gpuMetricsChan, tbNetStatsChan, triggerProcessCollectionChan)
+	go collectProcessMetrics(done, processMetricsChan, triggerProcessCollectionChan)
 	go collectNetDiskMetrics(done, netdiskMetricsChan)
 
 	uiEvents := ui.PollEvents()

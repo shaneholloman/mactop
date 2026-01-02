@@ -247,7 +247,7 @@ func updateProcessGPUMetrics(processes []ProcessMetrics, now time.Time) {
 	rawTotalPercent := totalRawGpuMs / 10.0
 
 	scaleFactor := 1.0
-	if rawTotalPercent > 0.5 && systemGpuPercent > 0.5 {
+	if rawTotalPercent > 0.01 && systemGpuPercent > 0.01 {
 		scaleFactor = systemGpuPercent / rawTotalPercent
 	}
 
