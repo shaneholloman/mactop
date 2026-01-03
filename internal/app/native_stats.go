@@ -535,9 +535,33 @@ int get_storage_devices(storage_device_info_t *devices, int max_devices) {
                 IORegistryEntryGetName(entry, name);
                 strncpy(devices[count].name, name, sizeof(devices[count].name) - 1);
 
-                CFBooleanRef internalRef = CFDictionaryGetValue(props, CFSTR("Protocol Characteristics"));
-                if (internalRef) {
-                    devices[count].is_internal = 1;
+                // Check "Protocol Characteristics" -> "Physical Interconnect Location" == "Internal"
+                CFDictionaryRef protoDict = (CFDictionaryRef)CFDictionaryGetValue(props, CFSTR("Protocol Characteristics"));
+                if (protoDict && CFGetTypeID(protoDict) == CFDictionaryGetTypeID()) {
+                    CFStringRef locRef = (CFStringRef)CFDictionaryGetValue(protoDict, CFSTR("Physical Interconnect Location"));
+                    if (locRef && CFGetTypeID(locRef) == CFStringGetTypeID()) {
+                        char locBuf[32];
+                        if (CFStringGetCString(locRef, locBuf, sizeof(locBuf), kCFStringEncodingUTF8)) {
+                            if (strncmp(locBuf, "Internal", 8) == 0) {
+                                devices[count].is_internal = 1;
+                            }
+                        }
+                    }
+                }
+
+                // Fallback: Check direct boolean properties "Internal" or "OSInternal"
+                if (devices[count].is_internal == 0) {
+                     CFBooleanRef internalRef = CFDictionaryGetValue(props, CFSTR("Internal"));
+                     if (internalRef && CFBooleanGetValue(internalRef)) {
+                         devices[count].is_internal = 1;
+                     }
+                }
+
+                if (devices[count].is_internal == 0) {
+                     CFBooleanRef osInternalRef = CFDictionaryGetValue(props, CFSTR("OSInternal"));
+                     if (osInternalRef && CFBooleanGetValue(osInternalRef)) {
+                         devices[count].is_internal = 1;
+                     }
                 }
 
                 count++;
