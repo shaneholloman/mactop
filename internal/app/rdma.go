@@ -103,10 +103,7 @@ func GetRDMADevices() []RDMADevice {
 		// New device starts with "hca_id:"
 		if strings.HasPrefix(line, "hca_id:") {
 			if currentDevice != nil {
-				// Derive network interface from device name (rdma_enX -> enX)
-				if strings.HasPrefix(currentDevice.Name, "rdma_") {
-					currentDevice.Interface = strings.TrimPrefix(currentDevice.Name, "rdma_")
-				}
+				finalizeRDMADevice(currentDevice)
 				devices = append(devices, *currentDevice)
 			}
 			currentDevice = &RDMADevice{
@@ -115,64 +112,69 @@ func GetRDMADevices() []RDMADevice {
 			continue
 		}
 
-		if currentDevice == nil {
-			continue
-		}
-
-		// Parse device properties
-		if strings.HasPrefix(line, "transport:") {
-			// Format: "transport:			Thunderbolt (100)"
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				transport := strings.TrimSpace(parts[1])
-				// Remove the numeric code suffix like "(100)"
-				if idx := strings.Index(transport, "("); idx > 0 {
-					transport = strings.TrimSpace(transport[:idx])
-				}
-				currentDevice.Transport = transport
-			}
-		} else if strings.HasPrefix(line, "node_guid:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				currentDevice.NodeGUID = strings.TrimSpace(parts[1])
-			}
-		} else if strings.HasPrefix(line, "state:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				state := strings.TrimSpace(parts[1])
-				// Extract state name from format "PORT_DOWN (1)"
-				if idx := strings.Index(state, "("); idx > 0 {
-					state = strings.TrimSpace(state[:idx])
-				}
-				currentDevice.PortState = state
-			}
-		} else if strings.HasPrefix(line, "active_mtu:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				mtuStr := strings.TrimSpace(parts[1])
-				// Extract MTU value from format "4096 (5)"
-				if idx := strings.Index(mtuStr, " "); idx > 0 {
-					mtuStr = mtuStr[:idx]
-				}
-				if mtu, err := strconv.Atoi(mtuStr); err == nil {
-					currentDevice.ActiveMTU = mtu
-				}
-			}
-		} else if strings.HasPrefix(line, "link_layer:") {
-			parts := strings.SplitN(line, ":", 2)
-			if len(parts) == 2 {
-				currentDevice.LinkLayer = strings.TrimSpace(parts[1])
-			}
+		if currentDevice != nil {
+			parseRDMADeviceLine(line, currentDevice)
 		}
 	}
 
 	// Don't forget the last device
 	if currentDevice != nil {
-		if strings.HasPrefix(currentDevice.Name, "rdma_") {
-			currentDevice.Interface = strings.TrimPrefix(currentDevice.Name, "rdma_")
-		}
+		finalizeRDMADevice(currentDevice)
 		devices = append(devices, *currentDevice)
 	}
 
 	return devices
+}
+
+// finalizeRDMADevice derives the network interface from the device name
+func finalizeRDMADevice(device *RDMADevice) {
+	if strings.HasPrefix(device.Name, "rdma_") {
+		device.Interface = strings.TrimPrefix(device.Name, "rdma_")
+	}
+}
+
+// parseRDMADeviceLine parses a single line of ibv_devinfo output into the device
+func parseRDMADeviceLine(line string, device *RDMADevice) {
+	switch {
+	case strings.HasPrefix(line, "transport:"):
+		device.Transport = parseRDMAFieldWithParens(line)
+	case strings.HasPrefix(line, "node_guid:"):
+		device.NodeGUID = parseRDMAField(line)
+	case strings.HasPrefix(line, "state:"):
+		device.PortState = parseRDMAFieldWithParens(line)
+	case strings.HasPrefix(line, "active_mtu:"):
+		device.ActiveMTU = parseRDMAMTU(line)
+	case strings.HasPrefix(line, "link_layer:"):
+		device.LinkLayer = parseRDMAField(line)
+	}
+}
+
+// parseRDMAField extracts the value after the colon
+func parseRDMAField(line string) string {
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) == 2 {
+		return strings.TrimSpace(parts[1])
+	}
+	return ""
+}
+
+// parseRDMAFieldWithParens extracts the value and removes parenthetical suffix
+func parseRDMAFieldWithParens(line string) string {
+	value := parseRDMAField(line)
+	if idx := strings.Index(value, "("); idx > 0 {
+		return strings.TrimSpace(value[:idx])
+	}
+	return value
+}
+
+// parseRDMAMTU extracts the MTU integer value
+func parseRDMAMTU(line string) int {
+	mtuStr := parseRDMAField(line)
+	if idx := strings.Index(mtuStr, " "); idx > 0 {
+		mtuStr = mtuStr[:idx]
+	}
+	if mtu, err := strconv.Atoi(mtuStr); err == nil {
+		return mtu
+	}
+	return 0
 }
