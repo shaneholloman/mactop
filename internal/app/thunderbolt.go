@@ -184,6 +184,7 @@ type ThunderboltBusOutput struct {
 	ReceptacleID string                    `json:"receptacle_id,omitempty"`
 	Devices      []ThunderboltDeviceOutput `json:"devices,omitempty"`
 	NetworkStats *ThunderboltNetStats      `json:"network_stats,omitempty"`
+	RDMADevice   *RDMADevice               `json:"rdma_device,omitempty"`
 }
 
 type ThunderboltDeviceOutput struct {

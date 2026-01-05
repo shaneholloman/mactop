@@ -142,7 +142,7 @@ func printCSVHeader() {
 		"TB_Net_In_Bytes", "TB_Net_Out_Bytes",
 		"Total_Power", "System_Power",
 		"CPU_Temp", "GPU_Temp", "Thermal_State",
-		"RDMA_Available", "RDMA_Status",
+		"RDMA_Available", "RDMA_Status", "RDMA_Device_Count",
 	}
 
 	// Add dynamic core headers
@@ -270,6 +270,7 @@ func processHeadlessSample(format string, tbInfo *ThunderboltOutput, sysInfo Sys
 			output.ThermalState,
 			fmt.Sprintf("%t", output.RDMAStatus.Available),
 			output.RDMAStatus.Status,
+			fmt.Sprintf("%d", len(output.RDMAStatus.Devices)),
 		)
 
 		for i := 0; i < output.SystemInfo.CoreCount; i++ {
@@ -334,6 +335,10 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 
 	mapTBNetStatsToBuses(tbNetStats, tbInfo)
 
+	// Get RDMA status and map devices to TB buses
+	rdmaStatus := CheckRDMAAvailable()
+	mapRDMADevicesToBuses(rdmaStatus.Devices, tbInfo)
+
 	return HeadlessOutput{
 		Timestamp:             time.Now().Format(time.RFC3339),
 		SocMetrics:            m,
@@ -348,7 +353,7 @@ func collectHeadlessData(tbInfo *ThunderboltOutput, sysInfo SystemInfo) Headless
 		ThunderboltInfo:       tbInfo,
 		TBNetTotalBytesInSec:  tbNetTotalIn,
 		TBNetTotalBytesOutSec: tbNetTotalOut,
-		RDMAStatus:            CheckRDMAAvailable(),
+		RDMAStatus:            rdmaStatus,
 		ThermalState:          thermalStr,
 	}
 }
@@ -406,6 +411,32 @@ func mapTBNetStatsToBuses(tbNetStats []ThunderboltNetStats, tbInfo *ThunderboltO
 			if busIdx >= 0 && busIdx < len(tbInfo.Buses) {
 				stat := enStats[i] // Copy for safe pointer reference
 				tbInfo.Buses[busIdx].NetworkStats = &stat
+			}
+		}
+	}
+}
+
+// mapRDMADevicesToBuses associates RDMA devices with their corresponding TB buses
+// by matching the RDMA device interface (e.g., "en2") with the bus NetworkStats interface
+func mapRDMADevicesToBuses(rdmaDevices []RDMADevice, tbInfo *ThunderboltOutput) {
+	if tbInfo == nil || len(rdmaDevices) == 0 {
+		return
+	}
+
+	// Build a map of interface name to RDMA device for quick lookup
+	rdmaByInterface := make(map[string]*RDMADevice)
+	for i := range rdmaDevices {
+		if rdmaDevices[i].Interface != "" {
+			rdmaByInterface[rdmaDevices[i].Interface] = &rdmaDevices[i]
+		}
+	}
+
+	// Match RDMA devices to buses based on NetworkStats interface name
+	for i := range tbInfo.Buses {
+		bus := &tbInfo.Buses[i]
+		if bus.NetworkStats != nil && bus.NetworkStats.InterfaceName != "" {
+			if rdmaDev, ok := rdmaByInterface[bus.NetworkStats.InterfaceName]; ok {
+				bus.RDMADevice = rdmaDev
 			}
 		}
 	}
