@@ -946,7 +946,7 @@ func GetCoreTopology() ([]CoreTopologyEntry, error) {
 }
 
 // BuildCoreLabels creates the correct E/P labels based on dynamic topology detection.
-// Returns: labels (sorted E first, then P), eCount, pCount, and cpuIndexMap (maps display index -> hardware CPU index)
+// Returns: labels (sorted E first, then P), eCount, pCount, and cpuIndexMap (maps display index -> Mach API index)
 func BuildCoreLabels() ([]string, int, int, []int) {
 	topology, err := GetCoreTopology()
 	if err != nil || len(topology) == 0 {
@@ -954,33 +954,43 @@ func BuildCoreLabels() ([]string, int, int, []int) {
 		return nil, 0, 0, nil
 	}
 
-	// Separate E-cores and P-cores
-	var eCores []CoreTopologyEntry
-	var pCores []CoreTopologyEntry
+	// topology is already sorted by CPUID (done in GetCoreTopology)
+	// The position in this sorted array corresponds to the Mach API index (0, 1, 2, ...)
+	// We need to separate E-cores and P-cores while preserving their Mach API indices
 
-	for _, entry := range topology {
+	// Track the Mach API index (position in sorted topology) for each core
+	type coreWithMachIndex struct {
+		machIndex int
+		coreType  CoreType
+	}
+
+	var eCores []coreWithMachIndex
+	var pCores []coreWithMachIndex
+
+	for machIdx, entry := range topology {
 		switch entry.CoreType {
 		case CoreTypeE:
-			eCores = append(eCores, entry)
+			eCores = append(eCores, coreWithMachIndex{machIdx, entry.CoreType})
 		case CoreTypeP:
-			pCores = append(pCores, entry)
+			pCores = append(pCores, coreWithMachIndex{machIdx, entry.CoreType})
 		}
 	}
 
 	// Build sorted list: E-cores first, then P-cores
+	// cpuIndexMap maps display index -> Mach API index
 	totalCores := len(eCores) + len(pCores)
 	labels := make([]string, totalCores)
-	cpuIndexMap := make([]int, totalCores) // maps display index -> hardware CPU index
+	cpuIndexMap := make([]int, totalCores)
 
 	idx := 0
-	for i, entry := range eCores {
+	for i, core := range eCores {
 		labels[idx] = fmt.Sprintf("E%d", i)
-		cpuIndexMap[idx] = entry.CPUID
+		cpuIndexMap[idx] = core.machIndex
 		idx++
 	}
-	for i, entry := range pCores {
+	for i, core := range pCores {
 		labels[idx] = fmt.Sprintf("P%d", i)
-		cpuIndexMap[idx] = entry.CPUID
+		cpuIndexMap[idx] = core.machIndex
 		idx++
 	}
 
