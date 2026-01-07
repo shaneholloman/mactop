@@ -5,15 +5,28 @@ package app
 
 import (
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
+// RDMADevice holds information about a single RDMA device
+type RDMADevice struct {
+	Name      string `json:"name" yaml:"name" xml:"Name"`
+	NodeGUID  string `json:"node_guid" yaml:"node_guid" xml:"NodeGUID"`
+	Transport string `json:"transport" yaml:"transport" xml:"Transport"`
+	PortState string `json:"port_state" yaml:"port_state" xml:"PortState"`
+	ActiveMTU int    `json:"active_mtu" yaml:"active_mtu" xml:"ActiveMTU"`
+	LinkLayer string `json:"link_layer" yaml:"link_layer" xml:"LinkLayer"`
+	Interface string `json:"interface,omitempty" yaml:"interface,omitempty" xml:"Interface,omitempty"` // Mapped network interface (e.g., en2)
+}
+
 // RDMAStatus holds RDMA availability information
 type RDMAStatus struct {
-	Available bool   `json:"available"`
-	Status    string `json:"status"`
+	Available bool         `json:"available" yaml:"available" xml:"Available"`
+	Status    string       `json:"status" yaml:"status" xml:"Status"`
+	Devices   []RDMADevice `json:"devices,omitempty" yaml:"devices,omitempty" xml:"Devices,omitempty"`
 }
 
 var (
@@ -56,6 +69,8 @@ func CheckRDMAAvailable() RDMAStatus {
 	if strings.Contains(result, "enabled") {
 		status.Available = true
 		status.Status = "RDMA Enabled"
+		// Enumerate RDMA devices when enabled
+		status.Devices = GetRDMADevices()
 	} else if strings.Contains(result, "disabled") {
 		status.Available = false
 		status.Status = "RDMA Disabled (use rdma_ctl enable in Recovery Mode)"
@@ -67,4 +82,99 @@ func CheckRDMAAvailable() RDMAStatus {
 	lastRDMAStatus = status
 	lastRDMACheck = time.Now()
 	return status
+}
+
+// GetRDMADevices enumerates RDMA devices by parsing ibv_devinfo output
+func GetRDMADevices() []RDMADevice {
+	var devices []RDMADevice
+
+	cmd := exec.Command("ibv_devinfo")
+	output, err := cmd.Output()
+	if err != nil {
+		return devices
+	}
+
+	lines := strings.Split(string(output), "\n")
+	var currentDevice *RDMADevice
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// New device starts with "hca_id:"
+		if strings.HasPrefix(line, "hca_id:") {
+			if currentDevice != nil {
+				finalizeRDMADevice(currentDevice)
+				devices = append(devices, *currentDevice)
+			}
+			currentDevice = &RDMADevice{
+				Name: strings.TrimSpace(strings.TrimPrefix(line, "hca_id:")),
+			}
+			continue
+		}
+
+		if currentDevice != nil {
+			parseRDMADeviceLine(line, currentDevice)
+		}
+	}
+
+	// Don't forget the last device
+	if currentDevice != nil {
+		finalizeRDMADevice(currentDevice)
+		devices = append(devices, *currentDevice)
+	}
+
+	return devices
+}
+
+// finalizeRDMADevice derives the network interface from the device name
+func finalizeRDMADevice(device *RDMADevice) {
+	if strings.HasPrefix(device.Name, "rdma_") {
+		device.Interface = strings.TrimPrefix(device.Name, "rdma_")
+	}
+}
+
+// parseRDMADeviceLine parses a single line of ibv_devinfo output into the device
+func parseRDMADeviceLine(line string, device *RDMADevice) {
+	switch {
+	case strings.HasPrefix(line, "transport:"):
+		device.Transport = parseRDMAFieldWithParens(line)
+	case strings.HasPrefix(line, "node_guid:"):
+		device.NodeGUID = parseRDMAField(line)
+	case strings.HasPrefix(line, "state:"):
+		device.PortState = parseRDMAFieldWithParens(line)
+	case strings.HasPrefix(line, "active_mtu:"):
+		device.ActiveMTU = parseRDMAMTU(line)
+	case strings.HasPrefix(line, "link_layer:"):
+		device.LinkLayer = parseRDMAField(line)
+	}
+}
+
+// parseRDMAField extracts the value after the colon
+func parseRDMAField(line string) string {
+	parts := strings.SplitN(line, ":", 2)
+	if len(parts) == 2 {
+		return strings.TrimSpace(parts[1])
+	}
+	return ""
+}
+
+// parseRDMAFieldWithParens extracts the value and removes parenthetical suffix
+func parseRDMAFieldWithParens(line string) string {
+	value := parseRDMAField(line)
+	if idx := strings.Index(value, "("); idx > 0 {
+		return strings.TrimSpace(value[:idx])
+	}
+	return value
+}
+
+// parseRDMAMTU extracts the MTU integer value
+func parseRDMAMTU(line string) int {
+	mtuStr := parseRDMAField(line)
+	if idx := strings.Index(mtuStr, " "); idx > 0 {
+		mtuStr = mtuStr[:idx]
+	}
+	if mtu, err := strconv.Atoi(mtuStr); err == nil {
+		return mtu
+	}
+	return 0
 }
