@@ -263,26 +263,29 @@ func updateHelpText() {
 	fullText := fmt.Sprintf(
 		"mactop is open source monitoring tool for Apple Silicon authored by Carsen Klock in Go Lang!\n\n"+
 			"Repo: github.com/metaspartan/mactop\n\n"+
-			"---Current Settings---\n"+
+			"----Current Settings----\n"+
 			"Prometheus Metrics: %s\n"+
 			"Version: %s\n"+
 			"Layout: %s\n"+
-			"Theme: %s\n"+
+			"Foreground Color: %s\n"+
+			"Background Color: %s\n"+
 			"Update Interval: %dms\n\n"+
-			"Controls:\n"+
+			"----Controls----\n"+
 			"- r: Refresh the UI data manually\n"+
 			"- c: Cycle through UI color themes\n"+
 			"- b: Cycle through UI background colors\n"+
 			"- p: Toggle party mode (color cycling)\n"+
 			"- l: Cycle through the 17 available layouts\n"+
+			"- i: Toggle information layout\n"+
 			"- F9: Kill selected process (y/n confirm)\n"+
+			"- f: Freeze the process list\n"+
 			"- /: Search process list\n"+
 			"- g/G: Jump to top/bottom of process list\n"+
 			"- + or -: Adjust update interval (faster/slower)\n"+
 			"- h or ?: Toggle this help menu\n"+
 			"- j/k or ↓/↑: Scroll help text\n"+ // Added scroll help
 			"- q or <C-c>: Quit the application\n\n"+
-			"Start Flags:\n"+
+			"----Start Flags----\n"+
 			"--help, -h: Show this help menu\n"+
 			"--version, -v: Show the version of mactop\n"+
 			"--interval, -i: Set the update interval in milliseconds. Default is 1000.\n"+
@@ -300,6 +303,7 @@ func updateHelpText() {
 		version,
 		currentConfig.DefaultLayout,
 		currentConfig.Theme,
+		currentConfig.Background,
 		updateInterval,
 	)
 
