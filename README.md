@@ -140,7 +140,7 @@ mactop --headless --format toon
 - `--pretty`: Pretty print JSON output in headless mode.
 - `--interval` or `-i`: Set the update interval in milliseconds. Default is 1000.
 - `--foreground`: Set the UI foreground color. Accepts named colors (green, red, blue, etc.) or hex colors (#9580FF).
-- `--bg` or `--background`: Set the UI background color. Accepts hex colors (#22212C).
+- `--bg` or `--background`: Set the UI background color. Accepts named colors (mocha-base, etc.) or hex colors (#22212C).
 - `--prometheus` or `-p`: Set and enable the local Prometheus metrics server on the given port. Default is disabled. (e.g. -p 2112 to enable Prometheus metrics on port 2112)
 - `--unit-network`: Network unit: auto, byte, kb, mb, gb (default: auto)
 - `--unit-disk`: Disk unit: auto, byte, kb, mb, gb (default: auto)

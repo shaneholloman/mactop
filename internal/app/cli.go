@@ -70,7 +70,7 @@ Options:
   -v, --version           Show the version of mactop
   -i, --interval <ms>     Set the update interval in milliseconds (default: 1000)
   --foreground <color>    Set the UI foreground color (named or hex, e.g., green, #9580FF)
-  --bg <hex>              Set the UI background color (hex, e.g., #22212C)
+  --bg <color>            Set the UI background color (named or hex, e.g., mocha-base, #22212C)
   -p, --prometheus <port> Run Prometheus metrics server on specified port (e.g. :9090)
       --headless          Run in headless mode (no TUI, output JSON to stdout)
       --format <format>   Set the output format (json, toon, etc.)
@@ -115,7 +115,7 @@ func handleBgFlag(idx int, args []string) (int, string, int, bool, bool, error) 
 		cliBgColor = args[idx+1]
 		return emptyResult(idx + 1).values()
 	}
-	return errorResult(idx, "Error: --bg flag requires a hex color value").values()
+	return errorResult(idx, "Error: --bg flag requires a color value").values()
 }
 
 func handlePrometheusFlag(idx int, args []string) (int, string, int, bool, bool, error) {

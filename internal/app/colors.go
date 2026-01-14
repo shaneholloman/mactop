@@ -23,7 +23,7 @@ func ParseHexColor(hex string) (ui.Color, error) {
 	hex = strings.TrimPrefix(hex, "#")
 	hex = strings.ToUpper(hex)
 
-	if !hexColorRegex.MatchString(hex) && !hexColorRegex.MatchString("#"+hex) {
+	if !hexColorRegex.MatchString(hex) {
 		return ui.ColorClear, fmt.Errorf("invalid hex color: %s", hex)
 	}
 

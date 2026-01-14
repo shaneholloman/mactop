@@ -299,7 +299,7 @@ func updateHelpText() {
 			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
 			"--foreground: Set the UI foreground color (named or hex, e.g., green, #9580FF)\n"+
-			"--bg: Set the UI background color (hex, e.g., #22212C)\n\n"+
+			"--bg: Set the UI background color (named or hex, e.g., mocha-base, #22212C)\n\n"+
 			"Theme File: Create ~/.mactop/theme.json for custom colors:\n"+
 			"{\"foreground\": \"#9580FF\", \"background\": \"#22212C\"}\n\n",
 		prometheusStatus,
@@ -454,7 +454,7 @@ func renderUI() {
 	}
 }
 
-func applyInitialTheme(colorName string, setColor bool, interval int, setInterval bool) {
+func applyInitialTheme(colorName string, setColor bool) {
 	if setColor {
 		applyTheme(colorName, IsLightMode)
 	} else {
@@ -463,21 +463,23 @@ func applyInitialTheme(colorName string, setColor bool, interval int, setInterva
 		}
 		applyTheme(currentConfig.Theme, IsLightMode)
 	}
-	if setInterval {
-		updateInterval = interval
-		updateIntervalText()
-	}
 }
 
 // initializeTheme sets up all theming with priority: CLI flags > theme.json > saved config
 func initializeTheme(colorName string, setColor bool, interval int, setInterval bool) {
+	// Always apply interval if set (regardless of theme source)
+	if setInterval {
+		updateInterval = interval
+		updateIntervalText()
+	}
+
 	// Priority: 1) CLI --foreground flag, 2) theme.json file, 3) saved config
 	themeApplied := false
 	if !setColor {
 		themeApplied = applyCustomThemeFile()
 	}
 	if !themeApplied {
-		applyInitialTheme(colorName, setColor, interval, setInterval)
+		applyInitialTheme(colorName, setColor)
 	}
 
 	// Apply --bg flag if set (overrides theme.json background)
@@ -487,7 +489,11 @@ func initializeTheme(colorName string, setColor bool, interval int, setInterval 
 	}
 
 	currentColorName = currentConfig.Theme
-	applyInitialBackground()
+
+	// Only apply initial background if not set via CLI flag
+	if cliBgColor == "" {
+		applyInitialBackground()
+	}
 }
 
 func Run() {
@@ -510,7 +516,7 @@ func Run() {
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")
 	flag.Bool("dump-ioreport", false, "Dump all available IOReport channels and exit")
 	flag.StringVar(&colorName, "foreground", "", "Set the UI foreground color (named or hex, e.g., green, #9580FF)")
-	flag.StringVar(&cliBgColor, "bg", "", "Set the UI background color (hex, e.g., #22212C)")
+	flag.StringVar(&cliBgColor, "bg", "", "Set the UI background color (named or hex, e.g., mocha-base, #22212C)")
 	flag.StringVar(&cliBgColor, "background", "", "Set the UI background color (alias for --bg)")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")

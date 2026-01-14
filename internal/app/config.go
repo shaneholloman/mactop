@@ -95,8 +95,7 @@ func saveConfig() {
 // Theme file format:
 //
 //	{
-//	  "accent": "#9580FF",
-//	  "foreground": "#F8F8F2",
+//	  "foreground": "#9580FF",
 //	  "background": "#22212C"
 //	}
 func loadThemeFile() *CustomThemeConfig {
