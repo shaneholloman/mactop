@@ -112,7 +112,11 @@ func handleForegroundFlag(idx int, args []string) (int, string, int, bool, bool,
 
 func handleBgFlag(idx int, args []string) (int, string, int, bool, bool, error) {
 	if idx+1 < len(args) {
-		cliBgColor = args[idx+1]
+		bgColor := args[idx+1]
+		if !IsHexColor(bgColor) {
+			bgColor = strings.ToLower(bgColor)
+		}
+		cliBgColor = bgColor
 		return emptyResult(idx + 1).values()
 	}
 	return errorResult(idx, "Error: --bg flag requires a color value").values()

@@ -744,20 +744,21 @@ func GetCurrentBgName() string {
 }
 
 // applyCustomThemeFile loads and applies custom theme from ~/.mactop/theme.json
-// Returns true if a custom theme was applied (either foreground or background)
-func applyCustomThemeFile() bool {
+// Returns (appliedForeground, appliedBackground) to indicate which colors were set
+func applyCustomThemeFile() (bool, bool) {
 	theme := loadThemeFile()
 	if theme == nil {
-		return false
+		return false, false
 	}
 
-	applied := false
+	appliedFg := false
+	appliedBg := false
 
 	// Apply custom background first (so foreground color applies on top)
 	if theme.Background != "" && IsHexColor(theme.Background) {
 		applyBackground(theme.Background)
 		currentConfig.Background = theme.Background
-		applied = true
+		appliedBg = true
 	}
 
 	// Apply foreground color (primary UI color)
@@ -765,8 +766,8 @@ func applyCustomThemeFile() bool {
 		applyTheme(theme.Foreground, IsLightMode)
 		currentConfig.Theme = theme.Foreground
 		currentConfig.CustomTheme = theme
-		applied = true
+		appliedFg = true
 	}
 
-	return applied
+	return appliedFg, appliedBg
 }

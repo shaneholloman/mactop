@@ -474,26 +474,30 @@ func initializeTheme(colorName string, setColor bool, interval int, setInterval 
 	}
 
 	// Priority: 1) CLI --foreground flag, 2) theme.json file, 3) saved config
-	themeApplied := false
+	fgApplied := false
+	bgApplied := false
 	if !setColor {
-		themeApplied = applyCustomThemeFile()
+		fgApplied, bgApplied = applyCustomThemeFile()
 	}
-	if !themeApplied {
-		applyInitialTheme(colorName, setColor)
+
+	// If CLI flag was set, that takes priority
+	if setColor {
+		applyTheme(colorName, IsLightMode)
+	} else if !fgApplied {
+		// Neither CLI nor theme.json set foreground, use saved config
+		applyInitialTheme(colorName, false)
 	}
 
 	// Apply --bg flag if set (overrides theme.json background)
 	if cliBgColor != "" {
 		applyBackground(cliBgColor)
 		currentConfig.Background = cliBgColor
+	} else if !bgApplied {
+		// Neither CLI nor theme.json set background, use saved config
+		applyInitialBackground()
 	}
 
 	currentColorName = currentConfig.Theme
-
-	// Only apply initial background if not set via CLI flag
-	if cliBgColor == "" {
-		applyInitialBackground()
-	}
 }
 
 func Run() {
