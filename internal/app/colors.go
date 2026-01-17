@@ -58,3 +58,27 @@ func MustParseHexColor(hex string, fallback ui.Color) ui.Color {
 	}
 	return color
 }
+
+// IsLightHexColor returns true if the hex color has high luminance (is bright)
+// Used to determine if text on this background should be dark for readability
+func IsLightHexColor(hex string) bool {
+	hex = strings.TrimPrefix(hex, "#")
+	if len(hex) == 3 {
+		hex = string([]byte{hex[0], hex[0], hex[1], hex[1], hex[2], hex[2]})
+	}
+	if len(hex) != 6 {
+		return false
+	}
+
+	r, err1 := strconv.ParseUint(hex[0:2], 16, 8)
+	g, err2 := strconv.ParseUint(hex[2:4], 16, 8)
+	b, err3 := strconv.ParseUint(hex[4:6], 16, 8)
+	if err1 != nil || err2 != nil || err3 != nil {
+		return false
+	}
+
+	// Calculate relative luminance using sRGB formula
+	// https://www.w3.org/TR/WCAG20/#relativeluminancedef
+	luminance := (0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)) / 255.0
+	return luminance > 0.5
+}

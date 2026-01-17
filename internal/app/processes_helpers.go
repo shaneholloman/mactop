@@ -38,8 +38,11 @@ func resolveProcessThemeColor() (string, string) {
 		selectedHeaderFg = "#020202"
 	} else if IsCatppuccinTheme(currentConfig.Theme) {
 		selectedHeaderFg = GetCatppuccinHex(currentConfig.Theme, "Base")
+	} else if IsHexColor(themeColorStr) && IsLightHexColor(themeColorStr) {
+		// Bright hex colors need dark text for contrast
+		selectedHeaderFg = "#020202"
 	}
-	// For hex colors on dark backgrounds, white text looks best
+	// For dark hex colors, white text looks best
 	return themeColorStr, selectedHeaderFg
 }
 

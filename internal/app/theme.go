@@ -566,7 +566,7 @@ func GetProcessTextColor(isCurrentUser bool) string {
 		}
 		return resolveThemeColorString(currentConfig.Theme)
 	}
-	return "white"
+	return "#888888" // Grey for non-current-user (root/system) processes
 }
 
 func cycleTheme() {
