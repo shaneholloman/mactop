@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	version                                                     = "v2.0.6"
+	version                                                     = "v2.0.7"
 	cpuGauge, gpuGauge, memoryGauge, aneGauge                   *w.Gauge
 	mainBlock                                                   *ui.Block
 	modelText, PowerChart, NetworkInfo, helpText, infoParagraph *w.Paragraph
@@ -65,6 +65,7 @@ var (
 	headlessPretty bool
 	headlessCount  int
 	headlessFormat string
+	cliBgColor     string // Background color from --bg flag
 	interruptChan  = make(chan struct{}, 10)
 
 	cachedTermWidth    int

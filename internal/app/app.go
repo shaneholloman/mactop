@@ -283,7 +283,7 @@ func updateHelpText() {
 			"- g/G: Jump to top/bottom of process list\n"+
 			"- + or -: Adjust update interval (faster/slower)\n"+
 			"- h or ?: Toggle this help menu\n"+
-			"- j/k or ↓/↑: Scroll help text\n"+ // Added scroll help
+			"- j/k or ↓/↑: Scroll help text\n"+
 			"- q or <C-c>: Quit the application\n\n"+
 			"----Start Flags----\n"+
 			"--help, -h: Show this help menu\n"+
@@ -298,7 +298,10 @@ func updateHelpText() {
 			"--unit-network: Network unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-disk: Disk unit: auto, byte, kb, mb, gb (default: auto)\n"+
 			"--unit-temp: Temperature unit: celsius, fahrenheit (default: celsius)\n"+
-			"--color, -c: Set the UI color. Default is none. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and more.\n\n",
+			"--foreground: Set the UI foreground color (named or hex, e.g., green, #9580FF)\n"+
+			"--bg: Set the UI background color (named or hex, e.g., mocha-base, #22212C)\n\n"+
+			"Theme File: Create ~/.mactop/theme.json for custom colors:\n"+
+			"{\"foreground\": \"#9580FF\", \"background\": \"#22212C\"}\n\n",
 		prometheusStatus,
 		version,
 		currentConfig.DefaultLayout,
@@ -451,7 +454,7 @@ func renderUI() {
 	}
 }
 
-func applyInitialTheme(colorName string, setColor bool, interval int, setInterval bool) {
+func applyInitialTheme(colorName string, setColor bool) {
 	if setColor {
 		applyTheme(colorName, IsLightMode)
 	} else {
@@ -460,10 +463,41 @@ func applyInitialTheme(colorName string, setColor bool, interval int, setInterva
 		}
 		applyTheme(currentConfig.Theme, IsLightMode)
 	}
+}
+
+// initializeTheme sets up all theming with priority: CLI flags > theme.json > saved config
+// Each property (foreground, background) is evaluated independently
+func initializeTheme(colorName string, setColor bool, interval int, setInterval bool) {
+	// Always apply interval if set (regardless of theme source)
 	if setInterval {
 		updateInterval = interval
 		updateIntervalText()
 	}
+
+	// Always load theme.json to get both foreground and background values
+	// We'll selectively apply based on CLI flag priorities
+	fgFromFile, bgFromFile := applyCustomThemeFile()
+
+	// Foreground priority: 1) CLI --foreground, 2) theme.json, 3) saved config
+	if setColor {
+		applyTheme(colorName, IsLightMode)
+	} else if !fgFromFile {
+		// Neither CLI nor theme.json set foreground, use saved config
+		applyInitialTheme(colorName, false)
+	}
+	// else: theme.json foreground was already applied by applyCustomThemeFile()
+
+	// Background priority: 1) CLI --bg, 2) theme.json, 3) saved config
+	if cliBgColor != "" {
+		applyBackground(cliBgColor)
+		currentConfig.Background = cliBgColor
+	} else if !bgFromFile {
+		// Neither CLI nor theme.json set background, use saved config
+		applyInitialBackground()
+	}
+	// else: theme.json background was already applied by applyCustomThemeFile()
+
+	currentColorName = currentConfig.Theme
 }
 
 func Run() {
@@ -485,8 +519,9 @@ func Run() {
 	flag.IntVar(&updateInterval, "i", 1000, "Update interval in milliseconds")
 	flag.Bool("d", false, "Dump all available IOReport channels and exit")
 	flag.Bool("dump-ioreport", false, "Dump all available IOReport channels and exit")
-	flag.StringVar(&colorName, "color", "", "Set the UI color. Options are 'green', 'red', 'blue', 'skyblue', 'magenta', 'yellow', 'gold', 'silver', and 'white'.")
-	flag.StringVar(&colorName, "c", "", "Set the UI color.")
+	flag.StringVar(&colorName, "foreground", "", "Set the UI foreground color (named or hex, e.g., green, #9580FF)")
+	flag.StringVar(&cliBgColor, "bg", "", "Set the UI background color (named or hex, e.g., mocha-base, #22212C)")
+	flag.StringVar(&cliBgColor, "background", "", "Set the UI background color (alias for --bg)")
 	flag.StringVar(&networkUnit, "unit-network", "auto", "Network unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&diskUnit, "unit-disk", "auto", "Disk unit: auto, byte, kb, mb, gb")
 	flag.StringVar(&tempUnit, "unit-temp", "celsius", "Temperature unit: celsius, fahrenheit")
@@ -527,9 +562,7 @@ func Run() {
 		stderrLogger.Printf("Prometheus metrics available at http://localhost:%s/metrics\n", prometheusPort)
 	}
 	setupUI()
-	applyInitialTheme(colorName, setColor, interval, setInterval)
-	currentColorName = currentConfig.Theme
-	applyInitialBackground()
+	initializeTheme(colorName, setColor, interval, setInterval)
 	setupGrid()
 	termWidth, termHeight := ui.TerminalDimensions()
 	mainBlock.SetRect(0, 0, termWidth, termHeight)
